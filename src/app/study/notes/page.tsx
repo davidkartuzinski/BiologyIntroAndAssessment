@@ -1,8 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { createClient } from '@/utils/supabase/server'; // (or wherever your server client is imported from)
 
-export const dynamic = 'force-dynamic';
-
 export default async function NotesPage() {
   await auth.protect();
 
