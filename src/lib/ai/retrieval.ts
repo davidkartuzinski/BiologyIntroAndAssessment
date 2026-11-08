@@ -12,10 +12,14 @@ export type RetrievedChunk = {
   content: string;
 };
 
-export async function retrieveStudyContext(_input: {
+export async function retrieveStudyContext(input: {
   query: string;
   userId: string;
   limit?: number;
 }): Promise<RetrievedChunk[]> {
+  if (input.query.trim().length === 0 || input.userId.length === 0) {
+    return [];
+  }
+
   return [];
 }
