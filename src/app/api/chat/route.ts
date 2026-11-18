@@ -7,6 +7,7 @@ import {
   toUIMessageStream,
   type UIMessage,
 } from "ai";
+import { AI_FEATURES_ENABLED } from "@/lib/ai/feature";
 import { latestUserText } from "@/lib/ai/messages";
 import { retrieveStudyContext } from "@/lib/ai/retrieval";
 import { buildTutorInstructions, tutorModelId } from "@/lib/ai/tutor";
@@ -32,6 +33,9 @@ function isUIMessage(value: unknown): value is UIMessage {
 }
 
 export async function POST(request: Request) {
+  if (!AI_FEATURES_ENABLED) {
+    return Response.json({ error: "Not found." }, { status: 404 });
+  }
   const { isAuthenticated, userId } = await auth();
   if (!isAuthenticated || !userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });

@@ -1,0 +1,44 @@
+# Project decisions
+
+Decisions made by the project owner. Check here before asking again.
+
+| Date | Topic | Decision |
+| --- | --- | --- |
+| 2026-11-18 | Supabase migrations and RLS | The current setup is acceptable for now (RLS on, no public policies, server uses the service role filtered by Clerk user id). |
+| 2026-11-18 | Restricting sign-ups | The owner restricts access in the Clerk dashboard. App-side sign-up stays as is. |
+| 2026-11-18 | `/study/notes` test page | Removed. |
+| 2026-11-18 | Existing tutor chat | Moved to its own tab at `/study/tutor`. `/study` is now the dashboard. |
+| 2026-11-18 | Weekly rest day | Chosen by the learner; leave unset for now. |
+| 2026-11-18 | Source PDFs and working docs | `docs/` and `docs/sources/` are gitignored. Source PDFs are never published or linked. |
+
+## Standing rules
+
+- Ask before: weaker security, public access, live emails, paid services, production deployment, deleting existing data.
+- Minor styling and reversible implementation details: use sensible defaults without asking.
+
+## Roles, review, consent and uploads (2026-11-18)
+
+- Two human roles: **learner** (Lauren, lauren@midio.ae) and **reviewer** (David, david@midio.ae). No "tutor" role was ever implemented, so the name is "reviewer".
+- The AI tutor is a server-side feature, not a user or role.
+- Role source: Clerk **public metadata** `role` (`"learner"` or `"reviewer"`). Users cannot edit public metadata. Every protected page and action reads the role on the server (`src/lib/auth/viewer.ts`). A missing or unknown role never grants reviewer access. Hidden navigation is not treated as security.
+- Reviewer access is scoped to assigned learners only (Lauren), not to every learner.
+- Reviewer can see submissions, attachments, private marking guidance and AI feedback. They can add manual feedback, record a human outcome that overrides the displayed status (the original AI assessment is kept), flag incorrect AI feedback, and see a review queue. The reviewer UI is kept simple: a queue and a detail page.
+- Everything is preserved: the original answer, every revision, the original AI feedback, manual feedback, and the reviewer identity and time.
+- Consent settings are required before AI processing, reviewer access and submission emails. Emails go to David only after consent and live-email approval.
+- Private marking guidance goes to the AI only server-side, and never in learner-facing responses.
+- Photos: a private Supabase Storage bucket; JPEG, PNG and WebP up to 10 MB; configurable attachment-count limit; content-based type checks; short-lived signed URLs issued only after an authorization check; no public URLs. The Supabase plan is **paid**: do not describe costs as free-tier.
+- HEIC: not accepted at launch. Lauren sees a clear message explaining how to send a JPEG instead. Revisit only with a tested conversion path.
+- Written answers must survive upload or AI failures.
+- Database and Storage changes go in version-controlled migrations and are applied to a live database only with approval.
+- 2026-11-18: David–Lauren link uses the `reviewer_assignments` table (approved).
+- 2026-11-18: The owner applies migrations themselves in the Supabase SQL editor; Claude supplies the SQL.
+- 2026-11-18: Photo viewing links last **15 minutes**. Reviewer and learner get a "Get a new link" button that issues a fresh link after re-checking access.
+- 2026-11-18: Clerk IDs: David (reviewer) user_3Lp5sH36C36Bdo6h2ad7bRAXP7G; Lauren (learner) user_3LpKNJ84Zo6hc1WCkbtDIoX9t9u. Assignment seeded in migration 0003.
+
+## AI deferred (2026-11-19)
+
+- **AI tutor and AI feedback: Deferred — awaiting explicit authorization.** No AI provider calls, no AI keys requested, no AI charges, and no AI-generated feedback, grades, hints or explanations.
+- Existing AI code is kept but switched off by the code constant `AI_FEATURES_ENABLED = false` (`src/lib/ai/feature.ts`). `/api/chat` returns 404, the tutor page and nav link are hidden, and the AI consent control is hidden.
+- After submitting, Lauren sees "Submitted — awaiting review". David reviews manually. Lauren can keep studying while she waits.
+- Progress comes only from real submissions and David's recorded reviews.
+- Do not ask about an AI provider or an AI-feedback release policy until the owner reactivates this phase.

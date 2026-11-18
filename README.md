@@ -51,7 +51,11 @@ Then run `supabase/migrations/0001_study_foundation.sql` in the Supabase SQL edi
 
 The tables use row level security with no public policies. The server uses the service role and only writes rows for the signed-in Clerk user id.
 
-## 3. Connect the tutor model
+## 3. AI tutor (deferred)
+
+AI features are **Deferred — awaiting explicit authorization**. They are disabled in code (`src/lib/ai/feature.ts`), so no AI keys are needed and no AI calls are made. The notes below apply only once AI is authorized.
+
+### Connect the tutor model (when authorized)
 
 The chat route calls the Vercel AI Gateway. The default model is `google/gemini-3.8-flash`. Set `AI_TUTOR_MODEL` to another `provider/model` id, such as `openai/gpt-5.4-mini`, to switch.
 

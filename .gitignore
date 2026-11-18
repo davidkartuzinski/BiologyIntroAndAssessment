@@ -44,3 +44,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .clerk/
+
+# private source material and working documents
+docs/
+docs/sources/

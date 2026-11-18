@@ -2,14 +2,19 @@
 
 import { SignOutButton, UserButton } from "@clerk/nextjs";
 import {
+  BookOpen,
+  BookA,
   ChartNoAxesColumn,
+  House,
   Library,
   LogOut,
-  MessageCircle,
-  NotebookPen,
+  Map,
+  PlaySquare,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,15 +32,14 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigation = [
-  { href: "/study", label: "Tutor", icon: MessageCircle },
+  { href: "/study", label: "Dashboard", icon: House },
+  { href: "/study/course", label: "Course map", icon: Map },
+  { href: "/study/units/introduction", label: "Introductory unit", icon: BookOpen },
+  { href: "/study/glossary", label: "Glossary", icon: BookA },
+  { href: "/study/resources", label: "Resources", icon: PlaySquare },
+  { href: "/study/settings", label: "Settings", icon: Settings },
   { href: "/study/library", label: "Library", icon: Library, later: true },
-  { href: "/study/notes", label: "Notes", icon: NotebookPen, later: true },
-  {
-    href: "/study/progress",
-    label: "Progress",
-    icon: ChartNoAxesColumn,
-    later: true,
-  },
+  { href: "/study/progress", label: "Progress", icon: ChartNoAxesColumn },
 ] as const;
 
 function isCurrent(pathname: string, href: string) {
@@ -45,9 +49,43 @@ function isCurrent(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function StudySidebar() {
-  const pathname = usePathname();
+function NavMenu({ pathname }: { pathname: string }) {
+  return (
+    <SidebarMenu>
+      {navigation.map((item) => {
+        const Icon = item.icon;
+        return (
+          <SidebarMenuItem key={item.href}>
+            <SidebarMenuButton
+              asChild
+              isActive={isCurrent(pathname, item.href)}
+              tooltip={item.label}
+            >
+              <Link href={item.href}>
+                <Icon />
+                <span>{item.label}</span>
+                {"later" in item ? (
+                  <Badge
+                    variant="outline"
+                    className="ml-auto group-data-[collapsible=icon]:hidden"
+                  >
+                    Later
+                  </Badge>
+                ) : null}
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
+}
 
+function ActiveNavMenu() {
+  return <NavMenu pathname={usePathname()} />;
+}
+
+export function StudySidebar({ reviewerLink }: { reviewerLink?: React.ReactNode }) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-4 py-4">
@@ -60,33 +98,10 @@ export function StudySidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Study</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isCurrent(pathname, item.href)}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <Icon />
-                        <span>{item.label}</span>
-                        {"later" in item ? (
-                          <Badge
-                            variant="outline"
-                            className="ml-auto group-data-[collapsible=icon]:hidden"
-                          >
-                            Later
-                          </Badge>
-                        ) : null}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            <Suspense fallback={<NavMenu pathname="" />}>
+              <ActiveNavMenu />
+            </Suspense>
+            {reviewerLink}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
