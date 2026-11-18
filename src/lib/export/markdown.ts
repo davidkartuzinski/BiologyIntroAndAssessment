@@ -8,7 +8,12 @@ import type { ContentBlock, MarkingGuidance, Question, Unit } from "../../conten
 import type { Assistance, ReviewOutcome } from "../attempts/logic.ts";
 
 export type ExportReview = { id: string; reviewerName: string; outcome: ReviewOutcome; comments: string | null; reviewedAt: string };
-export type ExportImage = { attachmentId: string; fileName: string; contentType: string; sizeBytes: number; available: boolean };
+export type ExportImage = {
+  attachmentId: string;
+  /** Canonical path shared with the ZIP entry and manifest. */
+  path: string;
+  status: "included" | "listed" | "missing" | "unsupported";
+};
 export type ExportAttempt = {
   id: string;
   questionId: string;
@@ -80,11 +85,20 @@ function answerMarkdown(question: Question, attempt: ExportAttempt) {
   return question.parts.map((part) => `*${part.label}. ${part.prompt}*\n\n${quoted(attempt.answer.parts[part.id] ?? "")}`).join("\n\n");
 }
 
-function imagesMarkdown(attempt: ExportAttempt, imagesIncluded: boolean) {
+function imagesMarkdown(attempt: ExportAttempt) {
   if (attempt.images.length === 0) return "- Attachments: none";
-  const lines = attempt.images.map((image) => {
-    if (!image.available) return `  - **MISSING:** ${image.fileName} could not be exported (file not found in storage).`;
-    return imagesIncluded ? `  - [${image.fileName}](${image.fileName})` : `  - ${image.fileName} (not included in this download)`;
+  const lines = attempt.images.map((image, index) => {
+    const label = `Photo ${index + 1}`;
+    switch (image.status) {
+      case "included":
+        return `  - [${label}](${image.path})`;
+      case "listed":
+        return `  - ${label}: ${image.path} (not included in this download)`;
+      case "missing":
+        return `  - **NOT EXPORTED:** ${label} — the stored file could not be found.`;
+      case "unsupported":
+        return `  - **NOT EXPORTED:** ${label} — the stored file is not a recognisable JPEG, PNG, or WebP image.`;
+    }
   });
   return ["- Attachments:", ...lines].join("\n");
 }
@@ -105,7 +119,7 @@ function attemptDetails(question: Question, attempt: ExportAttempt, input: Expor
     `- Submitted: ${when(attempt.submittedAt, input.timeZone)}`,
     `- Support used: ${attempt.assistance ? `${SUPPORT[attempt.assistance]} (${attempt.assistance})` : "Not recorded"}`,
     `- Word or phrase found unclear: ${attempt.unclearWords ? attempt.unclearWords.replace(/\n/g, " / ") : "None recorded"}`,
-    imagesMarkdown(attempt, input.imagesIncluded),
+    imagesMarkdown(attempt),
     "",
     "Answer:",
     "",
@@ -206,12 +220,6 @@ export function buildExportMarkdown(input: ExportInput): string {
   });
 
   return [...header, "", ...context, "", ...questions, ""].join("\n");
-}
-
-/** Safe, unique, relative file name for an exported image. */
-export function exportImageName(questionNumber: number, attemptNumber: number, index: number, contentType: string) {
-  const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
-  return `images/q${String(questionNumber).padStart(2, "0")}-attempt${attemptNumber}-photo${index + 1}.${ext}`;
 }
 
 /** Access rule: only a reviewer, and only for an assigned learner who consented. */

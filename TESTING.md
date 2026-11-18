@@ -173,3 +173,13 @@ As **Lauren**:
 7. On the assessment page, words in the questions and instructions have popovers. The answer boxes do not. Tapping a word never submits the answer.
 8. A deactivated word is no longer underlined after reloading. David's edits appear after a normal reload, with no redeploy.
 9. Lauren's submitted answers and the export contain no glossary markup.
+
+### Export image check (round 6)
+
+Finding: all five stored photos are genuine PNG files. Rebuilding the export from them gives `.png` paths that match the bytes in the ZIP, the manifest and the report, and the consistency check passes. The `.jpg` names appeared after extraction, most likely because the upload tool converted or renamed them.
+
+1. Download the export with "Include attached images".
+2. Extract the ZIP with the system unzipper (do not upload it anywhere first).
+3. Open `report.md` in a Markdown viewer and click each "Photo N" link. Every link opens the image.
+4. Every row in `manifest.csv` with status `included` names a file that exists under `images/`, and its extension matches the `format` column.
+5. On macOS, run `file images/*` in the extracted folder. Each file's real type matches its extension.

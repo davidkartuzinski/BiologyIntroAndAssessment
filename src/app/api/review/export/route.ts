@@ -10,7 +10,8 @@ import {
 } from "@/lib/attempts/store";
 import { getCourse } from "@/lib/content";
 import { getMarkingGuidance } from "@/lib/content/tutor-guide";
-import { buildExportMarkdown, canExport, exportImageName, type ExportAttempt } from "@/lib/export/markdown";
+import { manifestCsv, planExportImages, verifyPackage, type PlannedImageInput } from "@/lib/export/images";
+import { buildExportMarkdown, canExport, type ExportAttempt } from "@/lib/export/markdown";
 import { createZip } from "@/lib/export/zip";
 
 const TIME_ZONE = "Asia/Kuala_Lumpur";
@@ -40,42 +41,44 @@ export async function GET(request: Request) {
     const names = await reviewerNames(attempts.flatMap((attempt) => attempt.humanReviews.map((review) => review.reviewerId)));
     const questionNumber = new Map(unit.assessment.questions.map((question) => [question.id, question.number]));
 
-    const files: { name: string; data: Uint8Array }[] = [];
-    const manifest: string[] = ["file,question_id,question_number,attempt_number,status"];
-    const exportAttempts: ExportAttempt[] = [];
-
+    // Plan every image once; its path is reused for the ZIP entry, manifest, and report link.
+    const inputs: PlannedImageInput[] = [];
     for (const attempt of attempts) {
       const photos = attachments.filter((photo) => photo.attemptId === attempt.id);
-      const images = [];
       for (const [index, photo] of photos.entries()) {
-        const fileName = exportImageName(questionNumber.get(attempt.questionId) ?? 0, attempt.attemptNumber, index, photo.contentType);
-        let available = true;
-        if (format === "zip") {
-          const bytes = await downloadAttachment(photo.storagePath);
-          if (bytes) files.push({ name: fileName, data: bytes });
-          else available = false;
-          manifest.push(`${fileName},${attempt.questionId},${questionNumber.get(attempt.questionId) ?? ""},${attempt.attemptNumber},${available ? "included" : "missing"}`);
-        }
-        images.push({ attachmentId: photo.id, fileName, contentType: photo.contentType, sizeBytes: photo.sizeBytes, available });
+        inputs.push({
+          attachmentId: photo.id,
+          questionId: attempt.questionId,
+          questionNumber: questionNumber.get(attempt.questionId) ?? 0,
+          attemptId: attempt.id,
+          attemptNumber: attempt.attemptNumber,
+          index,
+          recordedType: photo.contentType,
+          bytes: format === "zip" ? await downloadAttachment(photo.storagePath) : undefined,
+        });
       }
-      exportAttempts.push({
-        id: attempt.id,
-        questionId: attempt.questionId,
-        attemptNumber: attempt.attemptNumber,
-        submittedAt: attempt.submittedAt,
-        answer: attempt.answer,
-        assistance: attempt.assistance,
-        unclearWords: attempt.unclearWords,
-        reviews: attempt.humanReviews.map((review) => ({
-          id: review.id,
-          reviewerName: names.get(review.reviewerId) ?? "Reviewer",
-          outcome: review.outcome,
-          comments: review.comments,
-          reviewedAt: review.reviewedAt,
-        })),
-        images,
-      });
     }
+    const planned = planExportImages(inputs, format === "zip");
+
+    const exportAttempts: ExportAttempt[] = attempts.map((attempt) => ({
+      id: attempt.id,
+      questionId: attempt.questionId,
+      attemptNumber: attempt.attemptNumber,
+      submittedAt: attempt.submittedAt,
+      answer: attempt.answer,
+      assistance: attempt.assistance,
+      unclearWords: attempt.unclearWords,
+      reviews: attempt.humanReviews.map((review) => ({
+        id: review.id,
+        reviewerName: names.get(review.reviewerId) ?? "Reviewer",
+        outcome: review.outcome,
+        comments: review.comments,
+        reviewedAt: review.reviewedAt,
+      })),
+      images: planned
+        .filter((image) => image.attemptId === attempt.id)
+        .map((image) => ({ attachmentId: image.attachmentId, path: image.path, status: image.status })),
+    }));
 
     const guidance = includeGuidance
       ? new Map(unit.assessment.questions.flatMap((question) => {
@@ -103,11 +106,18 @@ export async function GET(request: Request) {
       });
     }
     const encoder = new TextEncoder();
-    const zip = createZip([
-      { name: "report.md", data: encoder.encode(markdown) },
-      { name: "manifest.csv", data: encoder.encode(manifest.join("\n") + "\n") },
-      ...files,
+    const manifest = manifestCsv(planned, (questionId) => questionNumber.get(questionId));
+    const entries = new Map<string, Uint8Array>([
+      ["report.md", encoder.encode(markdown)],
+      ["manifest.csv", encoder.encode(manifest)],
+      ...planned.filter((image) => image.bytes).map((image) => [image.path, image.bytes!] as [string, Uint8Array]),
     ]);
+    const problems = verifyPackage(markdown, manifest, entries);
+    if (problems.length > 0) {
+      console.error("[export] package failed its consistency check", problems);
+      return Response.json({ error: "The export package failed its consistency check. Nothing was changed." }, { status: 500 });
+    }
+    const zip = createZip([...entries].map(([name, data]) => ({ name, data })));
     return new Response(zip as unknown as BodyInit, {
       headers: { ...headers, "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="${base}.zip"` },
     });
