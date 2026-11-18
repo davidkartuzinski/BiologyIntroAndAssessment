@@ -17,3 +17,5 @@
 | Data export of Lauren's answers | Not started |
 | AI tutor | **Deferred — awaiting explicit authorization** |
 | AI feedback, hints, explanations | **Deferred — awaiting explicit authorization** |
+| Export assessment for course planning (Markdown / ZIP) | Done; needs manual test |
+| Shared glossary with in-text definitions and reviewer editing | Done; needs migration 0005 and manual test |

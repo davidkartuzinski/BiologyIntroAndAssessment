@@ -1,5 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ChartNoAxesColumn, ClipboardCheck } from "lucide-react";
+import { BookA, ChartNoAxesColumn, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 import { SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { parseRole } from "@/lib/auth/roles";
@@ -60,6 +60,17 @@ export async function RoleNavLinks() {
             </Link>
           </SidebarMenuButton>
           <CountBadge count={pending} description={`${pending} question${pending === 1 ? "" : "s"} awaiting review`} />
+        </SidebarMenuItem>
+      ) : null}
+      {role === "reviewer" ? (
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild tooltip="Manage the glossary">
+            <Link href="/study/review/glossary">
+              <BookA />
+              <span>Glossary</span>
+              <span className="sr-only"> (manage definitions)</span>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
       ) : null}
     </SidebarMenu>

@@ -43,7 +43,10 @@ export default async function ReviewQueuePage() {
       title="Review queue"
       intro="One item per question, pointing to Lauren’s latest submission. Earlier attempts are history only and do not need separate review."
     >
-      <FreshOnShow label="Check for new submissions" />
+      <div className="flex flex-wrap items-center gap-3">
+        <FreshOnShow label="Check for new submissions" />
+        <Link href="/study/review/export" className="underline underline-offset-4">Export assessment for course planning</Link>
+      </div>
       {problem ? <p role="alert">{problem}</p> : null}
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">Awaiting review ({awaiting.length})</h2>

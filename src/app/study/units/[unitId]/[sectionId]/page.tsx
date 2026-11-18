@@ -1,7 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ContentBlocks, TermLinker } from "@/components/content/blocks";
+import { ContentBlocks } from "@/components/content/blocks";
+import { glossaryForPage } from "@/lib/glossary/linker";
 import { VocabularyList } from "@/components/content/vocabulary-list";
 import { PageShell } from "@/components/page-shell";
 import { assessmentHref, getSection, getTerm, getUnit, sectionHref, unitHref } from "@/lib/content";
@@ -14,10 +15,12 @@ export default async function SectionPage({ params }: PageProps<"/study/units/[u
   if (!unit || !found) notFound();
   const { section, previous, next } = found;
 
-  const termsHere = section.termsBeforeUse.map((id) => getTerm(unit, id)).filter((term) => term !== undefined);
-  const sectionIndex = unit.sections.indexOf(section);
-  const earlierSections = new Set(unit.sections.slice(0, sectionIndex).map((candidate) => candidate.id));
-  const linker = new TermLinker(unit.vocabulary.filter((term) => earlierSections.has(term.introducedIn)));
+  const glossary = await glossaryForPage();
+  const termsHere = section.termsBeforeUse
+    .map((id) => getTerm(unit, id))
+    .filter((term) => term !== undefined)
+    .map(glossary.current);
+  const linker = glossary.linker;
   const isLast = !next;
 
   return (

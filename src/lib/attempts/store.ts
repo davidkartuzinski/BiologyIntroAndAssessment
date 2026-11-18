@@ -492,3 +492,44 @@ export async function markReviewsSeen(userId: string, reviewIds: string[]) {
   if (missingTable(result.error)) return;
   check(result, "record that you viewed the feedback");
 }
+
+// Export (read-only) -----------------------------------------------------------
+
+export type ExportAttachmentRow = { id: string; attemptId: string | null; contentType: string; sizeBytes: number; storagePath: string };
+
+/**
+ * Read-only data for the course-planning export. Caller must already have
+ * checked canReview(reviewerId, learnerId). Drafts are deliberately excluded.
+ */
+export async function exportSource(reviewerId: string, learnerId: string) {
+  if (!(await canReview(reviewerId, learnerId))) throw new StoreError("You do not have access to this learner.");
+  const client = db();
+  const attempts = check(
+    await client.from("question_attempts").select(ATTEMPT_SELECT).eq("clerk_user_id", learnerId).order("attempt_number"),
+    "load attempts for export",
+  ) as unknown as AttemptRow[];
+  const attachments = check(
+    await client.from("attempt_attachments").select("id, attempt_id, content_type, size_bytes, storage_path").eq("clerk_user_id", learnerId).not("attempt_id", "is", null).order("created_at"),
+    "load photos for export",
+  ) as { id: string; attempt_id: string | null; content_type: string; size_bytes: number; storage_path: string }[];
+  return {
+    attempts: attempts.map(toSummary),
+    attachments: attachments.map((row): ExportAttachmentRow => ({ id: row.id, attemptId: row.attempt_id, contentType: row.content_type, sizeBytes: row.size_bytes, storagePath: row.storage_path })),
+  };
+}
+
+/** Downloads a stored photo's bytes server-side (no signed URL). Null if missing. */
+export async function downloadAttachment(storagePath: string): Promise<Uint8Array | null> {
+  const result = await db().storage.from(BUCKET).download(storagePath);
+  if (result.error || !result.data) return null;
+  return new Uint8Array(await result.data.arrayBuffer());
+}
+
+export async function learnerDisplayName(learnerId: string) {
+  try {
+    const user = await (await clerkClient()).users.getUser(learnerId);
+    return user.firstName || user.fullName || "Learner";
+  } catch {
+    return "Learner";
+  }
+}

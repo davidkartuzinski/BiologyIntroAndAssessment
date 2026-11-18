@@ -48,3 +48,9 @@ Decisions made by the project owner. Check here before asking again.
 - **Cause of the stale "Revisit":** the review was saved and the progress logic was correct. Lauren's page was a copy kept alive in her browser between navigations, and nothing told it that David had saved a review from another session. Review-dependent pages now refresh their server data when they come back into view or the tab regains focus, and have a "Check for new reviews" button.
 - One shared status mapping (`src/lib/attempts/review-status.ts`): Clear is green, Developing yellow, Revisit orange, Not assessed light grey. Awaiting review is a distinct blue dashed outline. Each always has a text label.
 - Unread feedback uses the new `feedback_views` table (migration 0004). Until it is applied, the "new" badges are hidden and everything else works.
+
+## Export and glossary (2026-11-19)
+
+- **Export assessment for course planning:** reviewer-only and read-only. Downloads Markdown, or a ZIP with images and a manifest. Optional neutral learner label; private guidance is off by default. Excludes drafts, IDs, emails, tokens and links. Exporting never marks feedback as read or changes the queue.
+- **Shared glossary:** the course vocabulary is the default content, stored in `glossary_entries` (migration 0005). David edits it at `/study/review/glossary`, using deactivate rather than delete, and can restore the original default after confirming. Lauren sees in-text definition popovers. Until 0005 is applied, the built-in definitions are shown and editing is disabled.
+- Database access follows the existing model: RLS is on with no public policies. The server lets learners read only active entries and lets only the reviewer role write.

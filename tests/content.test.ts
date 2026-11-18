@@ -106,7 +106,7 @@ test("learner-facing code never imports private tutor guidance", () => {
   };
   walk("src");
   // Only the server-only loader and reviewer pages (which call requireRole("reviewer")) may import it.
-  const allowed = new Set([join("src", "lib", "content", "tutor-guide.ts"), join("src", "app", "study", "review", "[attemptId]", "page.tsx")]);
+  const allowed = new Set([join("src", "lib", "content", "tutor-guide.ts"), join("src", "app", "study", "review", "[attemptId]", "page.tsx"), join("src", "app", "api", "review", "export", "route.ts")]);
   for (const file of files) {
     if (file.startsWith(join("src", "content", "private"))) continue;
     const text = readFileSync(file, "utf8");

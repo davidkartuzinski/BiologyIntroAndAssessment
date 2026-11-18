@@ -6,11 +6,13 @@ import { PageShell } from "@/components/page-shell";
 import { getViewer } from "@/lib/auth/viewer";
 import { learnerProgress } from "@/lib/attempts/learner-progress";
 import { assessmentHref, getCourse } from "@/lib/content";
+import { glossaryForPage } from "@/lib/glossary/linker";
 
 export default async function ProgressPage() {
   const viewer = await getViewer();
   const unit = getCourse().units[0];
   const progress = await learnerProgress(viewer, unit);
+  const { linker } = await glossaryForPage();
   return (
     <PageShell
       title="Progress"
@@ -48,7 +50,7 @@ export default async function ProgressPage() {
                       <h3 className="font-medium">
                         Question {row.number}: {row.title} (attempt {review.attemptNumber})
                       </h3>
-                      <ReviewResultPanel outcome={review.outcome} reviewerName={review.reviewerName} reviewedAt={review.reviewedAt} comments={review.comments} />
+                      <ReviewResultPanel outcome={review.outcome} reviewerName={review.reviewerName} reviewedAt={review.reviewedAt} comments={review.comments} renderComments={(text) => linker.render(text)} />
                     </div>
                   );
                 })}

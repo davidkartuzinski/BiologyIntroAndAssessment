@@ -46,7 +46,7 @@ function AttemptBlock({ attempt, question, attachments, label, showComments = tr
 }
 
 /** Learner view: the latest submission first; earlier attempts collapsed as history. */
-export function AttemptHistory({ attempts, question, attachments, latestReview }: { attempts: AttemptSummary[]; question: Question; attachments: Attachment[]; latestReview?: LatestReview }) {
+export function AttemptHistory({ attempts, question, attachments, latestReview, renderFeedback }: { attempts: AttemptSummary[]; question: Question; attachments: Attachment[]; latestReview?: LatestReview; renderFeedback?: (text: string) => React.ReactNode }) {
   if (attempts.length === 0) return null;
   const ordered = [...attempts].sort((a, b) => b.attemptNumber - a.attemptNumber);
   const [latest, ...earlier] = ordered;
@@ -55,7 +55,7 @@ export function AttemptHistory({ attempts, question, attachments, latestReview }
       <p className="text-sm font-semibold">Latest submission</p>
       <AttemptBlock attempt={latest} question={question} attachments={attachments} label={<StatusBadge attempt={latest} />} showComments={false} />
       {latestReview && latestReview.attemptNumber === latest.attemptNumber ? (
-        <ReviewResultPanel outcome={latestReview.outcome} reviewerName={latestReview.reviewerName} reviewedAt={latestReview.reviewedAt} comments={latestReview.comments} />
+        <ReviewResultPanel outcome={latestReview.outcome} reviewerName={latestReview.reviewerName} reviewedAt={latestReview.reviewedAt} comments={latestReview.comments} renderComments={renderFeedback} />
       ) : null}
       {earlier.length > 0 ? (
         <details>

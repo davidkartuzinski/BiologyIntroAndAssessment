@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContentBlocks } from "@/components/content/blocks";
+import { glossaryForPage } from "@/lib/glossary/linker";
 import { Citations } from "@/components/content/citations";
 import { PageShell } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
   const unit = getUnit(unitId);
   if (!unit) notFound();
   const { assessment } = unit;
+  const { linker } = await glossaryForPage();
 
   // Learner work is loaded only for the learner's own verified id.
   let work: { drafts: Map<string, Draft>; attempts: AttemptSummary[]; photos: Attachment[]; progress: LearnerProgress } | null = null;
@@ -60,7 +62,7 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
       <p role="status" className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">{notice}</p>
       {work ? <FreshOnShow /> : null}
       {work?.progress.ok && work.progress.unread?.length ? <MarkFeedbackSeen reviewIds={work.progress.unread} /> : null}
-      <ContentBlocks blocks={assessment.introduction} unit={unit} />
+      <ContentBlocks blocks={assessment.introduction} unit={unit} linker={linker} />
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Support labels</h2>
         <ul className="list-disc pl-6">
@@ -70,7 +72,7 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Instructions used below</h2>
         <ul className="list-disc pl-6">
-          {assessment.commandWords.items.map((item) => <li key={item.word}><span className="font-semibold">{item.word}:</span> {item.meaning}</li>)}
+          {assessment.commandWords.items.map((item) => <li key={item.word}><span className="font-semibold">{item.word}:</span> {linker.render(item.meaning)}</li>)}
         </ul>
         <p>These meanings are consistent with the syllabus’s command-word guidance.</p>
         <Citations citations={[{ kind: "syllabus", refId: assessment.commandWords.syllabusReferenceId }]} unit={unit} />
@@ -82,13 +84,13 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
             <h3 className="text-lg font-semibold">{question.number}. {question.title}</h3>
             {question.isReflection ? <Badge variant="secondary">Not marked right or wrong</Badge> : null}
           </div>
-          <ContentBlocks blocks={question.prompt} unit={unit} />
+          <ContentBlocks blocks={question.prompt} unit={unit} linker={linker} />
           {question.parts.length > 0 ? (
             <ul className="space-y-1 pl-1">
-              {question.parts.map((part) => <li key={part.id}><span className="font-semibold">{part.label}.</span> {part.prompt}</li>)}
+              {question.parts.map((part) => <li key={part.id}><span className="font-semibold">{part.label}.</span> {linker.render(part.prompt)}</li>)}
             </ul>
           ) : null}
-          {question.promptAfterParts.length > 0 ? <ContentBlocks blocks={question.promptAfterParts} unit={unit} /> : null}
+          {question.promptAfterParts.length > 0 ? <ContentBlocks blocks={question.promptAfterParts} unit={unit} linker={linker} /> : null}
           <p className="text-sm text-muted-foreground">
             Taught in:{" "}
             {question.teachingReferences.map((reference, index) => {
@@ -110,6 +112,7 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
                 question={question}
                 attachments={work.photos}
                 latestReview={work.progress.ok ? work.progress.latestReviews.get(question.id) : undefined}
+                renderFeedback={(comments) => linker.render(comments)}
               />
               <AnswerForm
                 questionId={question.id}

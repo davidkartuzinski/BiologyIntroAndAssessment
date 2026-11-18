@@ -114,3 +114,62 @@ Round 3 passed (owner, 2026-11-19).
 4. For a multi-part question, only the parts that changed show markings. Line breaks are kept.
 5. As Lauren, the assessment and Progress pages show her answers with no markings.
 6. Previous attempts, history, the queue, counts and photos look and behave exactly as before.
+
+## Round 5: export and shared glossary
+
+Automated (`tests/export.test.ts`, `tests/glossary.test.ts`):
+
+- **Export:**
+  - Only an assigned, consented reviewer can export; other learners and other roles cannot.
+  - Questions appear in order with their section.
+  - Answers are kept exactly as written.
+  - The latest submission is the main answer, and an older review stays with its own attempt.
+  - Unanswered and awaiting-review questions are counted, and the report says "INCOMPLETE".
+  - Drafts are never used.
+  - Private guidance appears only when selected.
+  - Image names map to attempts, and missing images are named.
+  - No IDs, emails or links appear.
+  - Building the report changes no data.
+  - The ZIP is valid (also checked with `unzip -t`).
+- **Glossary:**
+  - All existing definitions are seeded as defaults.
+  - Seeding again never resets an edit.
+  - Empty entries, duplicates and conflicting alternative forms are rejected.
+  - Matching is whole-word, ignores capitals, prefers the longest phrase, uses alternative forms, and finds every occurrence.
+  - Inactive entries are skipped.
+  - HTML-like text stays plain text.
+  - Triggers are buttons (`type="button"`), so they never submit a form.
+  - Triggers are not added to answer fields, uploads, reviewer views or exports.
+  - Every change action checks the reviewer role on the server.
+
+Signed out: `/api/review/export` returns 401, and `/study/review/glossary` redirects to sign-in.
+
+### Export manual checks (David)
+
+1. Review queue → "Export assessment for course planning". The summary changes as you tick the options.
+2. Download the Markdown report. Check that:
+   - questions are in order and answers match word for word;
+   - "Support used", unclear words, dates, outcomes, reviewer name and feedback are correct;
+   - earlier attempts are under "Earlier attempts — history only", each with its own review;
+   - the status line reads "INCOMPLETE" if anything is unanswered or awaiting review.
+3. Tick "Include attached images". The ZIP contains `report.md`, `manifest.csv` and `images/…`. The image links in the report open the files.
+4. Tick private guidance. Each question gains "Private reviewer guidance — not learner-facing course content". Untick it, and the section is gone.
+5. Afterwards, the queue count, review statuses, and Lauren's "New feedback" markers are unchanged.
+6. As Lauren, open `/study/review/export` and `/api/review/export`. Neither gives access.
+
+### Glossary manual checks (after applying migration 0005)
+
+As **David**:
+
+1. The sidebar has "Glossary" (manage). It lists every existing definition marked "Default".
+2. Search for "bacteria". The Bacterium entry appears (matched by its alternative form).
+3. Edit "Cell" and change the definition. The preview shows the popover. Try to leave the page before saving; the browser warns you. Save; a confirmation appears, and the entry shows "Default, edited", who changed it and when.
+4. Add "Tissue" with the alternative form "tissues". Try adding "cells" as an alternative form of a new word; it is refused with a clear message.
+5. Deactivate an entry, then activate it again. Use "Restore default…" on Cell, confirm, and check the original wording returns.
+
+As **Lauren**:
+
+6. Open Section A. Every "cell"/"cells"/"organism" in the reading is dotted-underlined. Tap one on a phone: the popover shows the word and David's new definition, and "Close" or tapping elsewhere dismisses it. With a keyboard: Tab to a word, press Enter, then Escape. With a mouse: hovering shows it, and clicking keeps it open.
+7. On the assessment page, words in the questions and instructions have popovers. The answer boxes do not. Tapping a word never submits the answer.
+8. A deactivated word is no longer underlined after reloading. David's edits appear after a normal reload, with no redeploy.
+9. Lauren's submitted answers and the export contain no glossary markup.

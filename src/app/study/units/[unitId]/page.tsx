@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContentBlocks } from "@/components/content/blocks";
+import { glossaryForPage } from "@/lib/glossary/linker";
 import { PageShell } from "@/components/page-shell";
 import { assessmentHref, getUnit, sectionHref } from "@/lib/content";
 
@@ -10,10 +11,11 @@ export default async function UnitPage({ params }: PageProps<"/study/units/[unit
   const { unitId } = await params;
   const unit = getUnit(unitId);
   if (!unit) notFound();
+  const { linker } = await glossaryForPage();
 
   return (
     <PageShell eyebrow={unit.subtitle} title={unit.title}>
-      <ContentBlocks blocks={unit.overview} unit={unit} />
+      <ContentBlocks blocks={unit.overview} unit={unit} linker={linker} />
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">What you should understand by the end</h2>
         <p>You should be able to:</p>

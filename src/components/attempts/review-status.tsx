@@ -18,12 +18,15 @@ export function ReviewResultPanel({
   reviewedAt,
   comments,
   title = "Review",
+  renderComments,
 }: {
   outcome: ReviewState;
   reviewerName: string;
   reviewedAt: string;
   comments: string | null;
   title?: string;
+  /** Learner pages pass the glossary linker here; text is unchanged. */
+  renderComments?: (text: string) => React.ReactNode;
 }) {
   return (
     <section className={cn("space-y-1 rounded-lg border-2 p-3", reviewStateClass[outcome])} aria-label={title}>
@@ -31,7 +34,7 @@ export function ReviewResultPanel({
       <p className="text-sm">
         Reviewed by {reviewerName} · <time dateTime={reviewedAt}>{new Date(reviewedAt).toLocaleString()}</time>
       </p>
-      {comments ? <p className="whitespace-pre-wrap pt-1">{comments}</p> : null}
+      {comments ? <p className="whitespace-pre-wrap pt-1">{renderComments ? renderComments(comments) : comments}</p> : null}
     </section>
   );
 }

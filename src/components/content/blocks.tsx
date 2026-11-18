@@ -1,6 +1,7 @@
-import Link from "next/link";
-import type { ReactNode } from "react";
-import type { ContentBlock, Unit, VocabularyTerm } from "@/content/schema.ts";
+import { Fragment, type ReactNode } from "react";
+import type { ContentBlock, Unit } from "@/content/schema.ts";
+import { GlossaryTerm } from "@/components/glossary/glossary-term";
+import { buildMatcher, segmentText, type GlossaryEntry, type Matcher } from "@/lib/glossary/logic";
 import { Citations } from "@/components/content/citations";
 import { PracticalCard } from "@/components/content/practical-card";
 import { ResourceCard } from "@/components/content/resource-card";
@@ -9,57 +10,38 @@ import { getResource, getTerm } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 /**
- * Links the first use of earlier-defined glossary terms to the glossary.
- * Terms defined at the top of the current section are not linked, because
- * their definitions are already on the page.
+ * Wraps every occurrence of an active glossary word or phrase in an inline
+ * definition button. Server-side and display-only: source text is unchanged.
  */
-export class TermLinker {
-  private readonly pattern: RegExp | null;
-  private readonly byLabel = new Map<string, VocabularyTerm>();
-  private readonly linked = new Set<string>();
+export class GlossaryLinker {
+  private readonly matcher: Matcher;
+  private readonly byId: Map<string, GlossaryEntry>;
 
-  constructor(terms: VocabularyTerm[]) {
-    const labels: string[] = [];
-    for (const term of terms) {
-      if (!term.linkInText) continue;
-      for (const label of [term.term, ...term.aliases]) {
-        this.byLabel.set(label.toLowerCase(), term);
-        labels.push(label);
-      }
-    }
-    labels.sort((a, b) => b.length - a.length);
-    const escaped = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    this.pattern = escaped.length > 0 ? new RegExp(`\\b(${escaped.join("|")})\\b`, "gi") : null;
+  constructor(entries: GlossaryEntry[]) {
+    this.matcher = buildMatcher(entries);
+    this.byId = new Map(entries.map((entry) => [entry.id, entry]));
+  }
+
+  /** Current (possibly edited) wording for a lesson vocabulary term. */
+  current<T extends { id: string; term: string; definition: string }>(term: T): T {
+    const entry = this.byId.get(term.id);
+    return entry ? { ...term, term: entry.term, definition: entry.definition } : term;
   }
 
   render(text: string): ReactNode {
-    if (!this.pattern) return text;
-    const nodes: ReactNode[] = [];
-    let last = 0;
-    for (const match of text.matchAll(this.pattern)) {
-      const term = this.byLabel.get(match[0].toLowerCase());
-      if (!term || this.linked.has(term.id) || match.index === undefined) continue;
-      this.linked.add(term.id);
-      nodes.push(text.slice(last, match.index));
-      nodes.push(
-        <Link
-          key={`${term.id}-${match.index}`}
-          href={`/study/glossary#term-${term.id}`}
-          title={`${term.term}: ${term.definition}`}
-          className="underline decoration-dotted underline-offset-4 hover:decoration-solid"
-        >
-          {match[0]}
-        </Link>,
-      );
-      last = match.index + match[0].length;
-    }
-    if (nodes.length === 0) return text;
-    nodes.push(text.slice(last));
-    return nodes;
+    const segments = segmentText(text, this.matcher);
+    if (segments.length === 1 && !segments[0].entry) return text;
+    return segments.map((segment, index) =>
+      segment.entry ? (
+        <GlossaryTerm key={index} text={segment.text} term={segment.entry.term} definition={segment.entry.definition} />
+      ) : (
+        <Fragment key={index}>{segment.text}</Fragment>
+      ),
+    );
   }
 }
 
-function Block({ block, unit, linker }: { block: ContentBlock; unit: Unit; linker?: TermLinker }) {
+function Block({ block, unit, linker }: { block: ContentBlock; unit: Unit; linker?: GlossaryLinker }) {
   const text = (value: string) => (linker ? linker.render(value) : value);
 
   switch (block.type) {
@@ -111,14 +93,14 @@ function Block({ block, unit, linker }: { block: ContentBlock; unit: Unit; linke
                     {row.map((cell, index) =>
                       index === 0 ? (
                         <th key={index} scope="row" className="px-3 py-2 font-medium">
-                          {cell}
+                          {text(cell)}
                         </th>
                       ) : (
                         <td
                           key={index}
                           className={cn("px-3 py-2", block.numericColumns.includes(index) && "text-right tabular-nums")}
                         >
-                          {cell}
+                          {text(cell)}
                         </td>
                       ),
                     )}
@@ -130,7 +112,10 @@ function Block({ block, unit, linker }: { block: ContentBlock; unit: Unit; linke
         </div>
       );
     case "definitions": {
-      const terms = block.termIds.map((termId) => getTerm(unit, termId)).filter((term) => term !== undefined);
+      const terms = block.termIds
+        .map((termId) => getTerm(unit, termId))
+        .filter((term) => term !== undefined)
+        .map((term) => (linker ? linker.current(term) : term));
       return <VocabularyList title={block.title} terms={terms} headingLevel="h4" />;
     }
     case "note":
@@ -164,7 +149,7 @@ export function ContentBlocks({
 }: {
   blocks: ContentBlock[];
   unit: Unit;
-  linker?: TermLinker;
+  linker?: GlossaryLinker;
 }) {
   return (
     <div className="space-y-4">
