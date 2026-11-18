@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { flagFeedbackAction, reviewAction } from "@/app/study/actions";
 import { Button } from "@/components/ui/button";
@@ -15,15 +16,16 @@ const OUTCOMES = [
 
 export function ReviewForm({ attemptId, isReflection }: { attemptId: string; isReflection: boolean }) {
   const [state, action, pending] = useActionState(reviewAction, null);
+  const kept = state && !state.ok ? state : null;
   return (
-    <form action={action} className="space-y-3">
+    <form action={action} className="space-y-3" key={kept?.latestAttemptId ?? "review"}>
       <input type="hidden" name="attemptId" value={attemptId} />
       <fieldset>
         <legend className="font-medium">Outcome</legend>
         <div className="flex flex-wrap gap-3">
           {OUTCOMES.filter((option) => (isReflection ? option.value === "reflection_noted" || option.value === "not_assessed" : option.value !== "reflection_noted")).map((option) => (
             <label key={option.value} className="flex items-center gap-2">
-              <input type="radio" name="outcome" value={option.value} required />
+              <input type="radio" name="outcome" value={option.value} required defaultChecked={kept?.outcome === option.value} />
               {option.label}
             </label>
           ))}
@@ -31,10 +33,15 @@ export function ReviewForm({ attemptId, isReflection }: { attemptId: string; isR
       </fieldset>
       <div className="space-y-1">
         <label htmlFor={`comments-${attemptId}`} className="block font-medium">Feedback for Lauren</label>
-        <Textarea id={`comments-${attemptId}`} name="comments" rows={4} />
+        <Textarea id={`comments-${attemptId}`} name="comments" rows={4} defaultValue={kept?.comments ?? ""} />
       </div>
       <Button type="submit" disabled={pending}>Save review</Button>
       {state ? <p role={state.ok ? "status" : "alert"} className="text-sm">{state.message}</p> : null}
+      {kept?.latestAttemptId ? (
+        <Link href={`/study/review/${kept.latestAttemptId}`} className="font-medium underline underline-offset-4">
+          Open the latest attempt (your comments are still in the box above to copy)
+        </Link>
+      ) : null}
     </form>
   );
 }

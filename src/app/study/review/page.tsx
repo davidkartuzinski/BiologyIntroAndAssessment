@@ -1,33 +1,36 @@
 import Link from "next/link";
-import { StatusBadge } from "@/components/attempts/attempt-history";
 import { PageShell } from "@/components/page-shell";
+import { Badge } from "@/components/ui/badge";
 import { requireRole } from "@/lib/auth/viewer";
-import { StoreError, reviewQueue } from "@/lib/attempts/store";
+import { statusLabel } from "@/lib/attempts/logic";
+import { reviewQueueItems, type QueueItem } from "@/lib/attempts/progress";
+import { StoreError, reviewQueue, type AttemptSummary } from "@/lib/attempts/store";
 import { findQuestion } from "@/lib/content/questions";
 
 export default async function ReviewQueuePage() {
   const viewer = await requireRole("reviewer");
-  let attempts: Awaited<ReturnType<typeof reviewQueue>> = [];
+  let items: QueueItem<AttemptSummary>[] = [];
   let problem: string | null = null;
   try {
-    attempts = await reviewQueue(viewer.userId);
+    items = reviewQueueItems(await reviewQueue(viewer.userId));
   } catch (error) {
     problem = error instanceof StoreError ? error.message : "The queue could not be loaded.";
   }
-  const awaiting = attempts.filter((attempt) => attempt.humanReviews.length === 0);
-  const reviewed = attempts.filter((attempt) => attempt.humanReviews.length > 0);
+  const awaiting = items.filter((item) => item.pending);
+  const reviewed = items.filter((item) => !item.pending);
 
-  const list = (items: typeof attempts) => (
+  const list = (rows: QueueItem<AttemptSummary>[]) => (
     <ul className="divide-y rounded-xl border">
-      {items.map((attempt) => {
-        const question = findQuestion(attempt.questionId)?.question;
+      {rows.map(({ latest, attemptCount, outcome }) => {
+        const question = findQuestion(latest.questionId)?.question;
         return (
-          <li key={attempt.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-            <Link href={`/study/review/${attempt.id}`} className="font-medium underline underline-offset-4">
-              Q{question?.number}. {question?.title} — attempt {attempt.attemptNumber}
+          <li key={latest.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <Link href={`/study/review/${latest.id}`} className="font-medium underline underline-offset-4">
+              Q{question?.number}. {question?.title}
             </Link>
-            <span className="flex items-center gap-2 text-sm text-muted-foreground">
-              {new Date(attempt.submittedAt).toLocaleString()} <StatusBadge attempt={attempt} />
+            <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              Attempt {latest.attemptNumber} (latest of {attemptCount}) · {new Date(latest.submittedAt).toLocaleString()}
+              <Badge variant={outcome ? "default" : "outline"}>{outcome ? `Reviewed: ${statusLabel[outcome]}` : "Awaiting review"}</Badge>
             </span>
           </li>
         );
@@ -36,7 +39,10 @@ export default async function ReviewQueuePage() {
   );
 
   return (
-    <PageShell title="Review queue" intro="Submissions from learners assigned to you who have agreed to reviewer access.">
+    <PageShell
+      title="Review queue"
+      intro="One item per question, pointing to Lauren’s latest submission. Earlier attempts are history only and do not need separate review."
+    >
       {problem ? <p role="alert">{problem}</p> : null}
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">Awaiting review ({awaiting.length})</h2>

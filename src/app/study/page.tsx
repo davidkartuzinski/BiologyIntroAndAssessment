@@ -6,6 +6,8 @@ import { assessmentHref, getCourse, sectionHref, unitHref } from "@/lib/content"
 import { getServiceStatus } from "@/lib/env/services";
 import { getViewer } from "@/lib/auth/viewer";
 import { learnerProgress } from "@/lib/attempts/learner-progress";
+import { reviewQueueItems } from "@/lib/attempts/progress";
+import { reviewQueue } from "@/lib/attempts/store";
 
 export default async function DashboardPage() {
   const viewer = await getViewer();
@@ -13,6 +15,12 @@ export default async function DashboardPage() {
   const unit = course.units[0];
   const status = getServiceStatus();
   const progress = await learnerProgress(viewer, unit);
+  const awaitingReview =
+    viewer.role === "reviewer" && status.supabase
+      ? await reviewQueue(viewer.userId)
+          .then((attempts) => reviewQueueItems(attempts).filter((item) => item.pending).length)
+          .catch(() => null)
+      : null;
 
   return (
     <PageShell eyebrow={course.qualification} title="Dashboard">
@@ -37,6 +45,7 @@ export default async function DashboardPage() {
       {viewer.role === "reviewer" ? (
         <section className="space-y-2 rounded-xl border p-5">
           <h2 className="text-xl font-semibold">Reviewer</h2>
+          <p>{awaitingReview === null ? "The queue count is unavailable." : `${awaitingReview} question${awaitingReview === 1 ? "" : "s"} awaiting review.`}</p>
           <Link href="/study/review" className="underline underline-offset-4">Open the review queue</Link>
         </section>
       ) : null}
@@ -46,6 +55,7 @@ export default async function DashboardPage() {
           <p>
             {progress.summary.submitted} of {progress.summary.total} questions submitted · {progress.summary.reviewed} reviewed ·{" "}
             {progress.summary.awaitingReview} awaiting review
+            {progress.summary.anotherAttemptSuggested ? ` · ${progress.summary.anotherAttemptSuggested} with another attempt suggested` : ""}
           </p>
           <p className="text-sm text-muted-foreground">You can keep studying while answers await review.</p>
           <Link href="/study/progress" className="underline underline-offset-4">See progress by question</Link>

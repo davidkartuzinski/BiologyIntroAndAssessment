@@ -16,8 +16,53 @@ Checked automatically or by request against a production build (2026-11-19):
 - Uploads are checked by file bytes. PDF, HEIC and empty files are rejected, as are files over 10 MB or over the per-question count (`tests/attempts.test.ts`).
 - A human review overrides the displayed status, and the AI result is kept (`tests/attempts.test.ts`).
 - Learner pages do not import private tutor guidance (`tests/content.test.ts`).
+- Photo removal (`tests/attempts.test.ts`):
+  - Removing one photo leaves the others in place.
+  - A removed photo is not included in the submission.
+  - The same file can be chosen again after removal.
+  - Removing a photo while it is uploading stops it from reappearing, and the stored copy is deleted.
+  - Photos that belong to a submitted attempt cannot be removed.
+- Review by question (`tests/attempts.test.ts`):
+  - Three attempts produce one queue item, for attempt 3.
+  - Reviewing attempt 3 resolves the question. Earlier attempts are kept and are not given reviews of their own.
+  - Attempt 4 reopens the question.
+  - A draft does not replace a submission.
+  - Reviewing an older attempt is refused while a newer one is waiting.
+  - "Reviewed" shows the actual outcome; it does not mean mastered.
 
-## Manual checks with real accounts
+## Manual results (owner, 2026-11-19)
+
+These passed:
+
+- Lauren is refused the review pages.
+- The consent switch saves.
+- Drafts save automatically.
+- Revisions keep earlier attempts.
+- JPEG is accepted; HEIC and PDF are refused, and the written answer stays.
+- Photo links expire after 15 minutes, and "Get a new link" works.
+- David's queue and review work.
+- Switching off consent empties the queue.
+
+## New manual checks: photo removal and review by question
+
+As **Lauren**:
+
+1. Type an answer and upload two JPEGs. Each shows a filename and thumbnail. Press "Remove attachment" on one. The other photo and the written text should stay.
+2. Choose the same file again. It should upload.
+3. Choose a large photo and press "Remove attachment" while it says "Uploading…". It should not come back, even after refreshing the page.
+4. Use Tab to reach "Remove attachment" and press Enter. It should remove the photo without submitting the answer.
+5. Submit. The photo should appear under the submitted attempt with no remove button.
+6. Submit three attempts. Attempt 3 should appear as "Latest submission". Attempts 1 and 2 should be under "Earlier attempts — history", labelled "Superseded by attempt 3".
+
+As **David**:
+
+1. The question should appear once, as "Attempt 3 (latest of 3)". The review page should say "Attempt 3 — latest submission", with attempts 1 and 2 under "Previous attempts — history only".
+2. Review it. The question moves to "Reviewed", and the awaiting count drops by one, not three.
+3. Have Lauren submit attempt 4. The question goes back to "Awaiting review" and points to attempt 4. Attempt 3's review is still shown in the history.
+4. Open attempt 4, have Lauren submit attempt 5, then save your review of attempt 4. It should be refused with a warning, keep your comments, and link to attempt 5. Attempt 5 should stay "Awaiting review".
+5. Review an attempt as "Revisit". Lauren's Progress page should show "Reviewed: Revisit — another attempt suggested".
+
+## Original manual checks with real accounts
 
 These need the two Clerk accounts and the live Supabase project, so they have not been run yet.
 

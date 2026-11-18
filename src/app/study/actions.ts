@@ -5,10 +5,12 @@ import { getViewer } from "@/lib/auth/viewer";
 import { normaliseAnswer, parseAssistance, isEmptyAnswer, type ReviewOutcome } from "@/lib/attempts/logic";
 import {
   CONSENT_KINDS,
+  NewerAttemptError,
   StoreError,
   addHumanReview,
   flagAiFeedback,
   recordConsents,
+  removeDraftAttachment,
   saveDraft,
   signedAttachmentUrl,
   submitAttempt,
@@ -16,7 +18,9 @@ import {
 } from "@/lib/attempts/store";
 import { findQuestion } from "@/lib/content/questions";
 
-export type ActionResult = { ok: true; message: string; at?: string } | { ok: false; message: string };
+export type ActionResult =
+  | { ok: true; message: string; at?: string }
+  | { ok: false; message: string; latestAttemptId?: string; comments?: string; outcome?: string };
 
 function failure(error: unknown): ActionResult {
   if (error instanceof StoreError) return { ok: false, message: error.message };
@@ -124,7 +128,15 @@ export async function reviewAction(_previous: ActionResult | null, formData: For
     const outcome = String(formData.get("outcome")) as ReviewOutcome;
     if (!OUTCOMES.includes(outcome)) return { ok: false, message: "Choose an outcome." };
     const comments = String(formData.get("comments") ?? "").trim().slice(0, 5000);
-    await addHumanReview(viewer.userId, String(formData.get("attemptId")), outcome, comments);
+    try {
+      await addHumanReview(viewer.userId, String(formData.get("attemptId")), outcome, comments);
+    } catch (error) {
+      if (error instanceof NewerAttemptError) {
+        // Keep what the reviewer typed so it can be reused on the latest attempt.
+        return { ok: false, message: error.message, latestAttemptId: error.latestAttemptId, comments, outcome };
+      }
+      throw error;
+    }
     refresh();
     return { ok: true, message: "Review saved. Earlier feedback is kept." };
   } catch (error) {
@@ -140,6 +152,18 @@ export async function flagFeedbackAction(_previous: ActionResult | null, formDat
     if (!reason) return { ok: false, message: "Say briefly what is wrong with the feedback." };
     await flagAiFeedback(viewer.userId, String(formData.get("aiFeedbackId")), reason);
     return { ok: true, message: "Flag saved." };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** Removes a photo from the learner's own draft. Submitted photos are never removed. */
+export async function removeDraftAttachmentAction(attachmentId: string): Promise<ActionResult> {
+  try {
+    const viewer = await getViewer();
+    if (viewer.role !== "learner") return { ok: false, message: "Only the learner account can remove photos." };
+    await removeDraftAttachment(viewer.userId, String(attachmentId));
+    return { ok: true, message: "Photo removed. Your written answer has not changed." };
   } catch (error) {
     return failure(error);
   }

@@ -21,6 +21,10 @@ export default async function ProgressPage() {
           <p>
             {progress.summary.submitted} of {progress.summary.total} questions submitted · {progress.summary.reviewed} reviewed ·{" "}
             {progress.summary.awaitingReview} awaiting review
+            {progress.summary.anotherAttemptSuggested ? ` · ${progress.summary.anotherAttemptSuggested} with another attempt suggested` : ""}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            “Reviewed” records David’s outcome; it does not by itself mean mastered. Total attempts submitted: {progress.summary.totalAttempts}.
           </p>
           <ProgressTable rows={progress.rows} assessmentHref={assessmentHref(unit.id)} />
         </>

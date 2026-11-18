@@ -12,6 +12,7 @@ import {
   type ImageType,
   type ReviewOutcome,
 } from "@/lib/attempts/logic";
+import { canReviewAttempt } from "@/lib/attempts/progress";
 import { createServiceClient, isSupabaseConfigured } from "@/lib/supabase/server";
 
 /**
@@ -28,6 +29,13 @@ export type ConsentKind = "ai_processing" | "reviewer_access" | "submission_emai
 export const CONSENT_KINDS: ConsentKind[] = ["ai_processing", "reviewer_access", "submission_emails"];
 
 export class StoreError extends Error {}
+
+/** Thrown when a reviewer tries to review an attempt that a newer submission has superseded. */
+export class NewerAttemptError extends StoreError {
+  constructor(readonly latestAttemptId: string, readonly latestAttemptNumber: number) {
+    super(`Lauren has submitted a newer answer (attempt ${latestAttemptNumber}). Your review was not saved. Open the latest attempt to review it.`);
+  }
+}
 
 export function maxAttachmentsPerQuestion() {
   const value = Number.parseInt(process.env.MAX_ATTACHMENTS_PER_QUESTION ?? "", 10);
@@ -302,6 +310,13 @@ export async function attemptsForQuestion(learnerId: string, questionId: string)
 export async function addHumanReview(reviewerId: string, attemptId: string, outcome: ReviewOutcome, comments: string) {
   const attempt = await attemptForReviewer(reviewerId, attemptId);
   if (!attempt) throw new StoreError("You do not have access to this submission.");
+  // Re-check at save time: a newer submission may have arrived while the page was open.
+  const siblings = await attemptsForQuestion(attempt.learnerId, attempt.questionId);
+  const verdict = canReviewAttempt(attempt, siblings);
+  if (!verdict.ok) {
+    const latest = siblings.find((other) => other.attemptNumber === verdict.latestAttemptNumber)!;
+    throw new NewerAttemptError(latest.id, latest.attemptNumber);
+  }
   check(
     await db().from("human_reviews").insert({ attempt_id: attemptId, reviewer_clerk_user_id: reviewerId, outcome, comments: comments || null }),
     "save the review",
@@ -401,4 +416,30 @@ export async function signedAttachmentUrl(viewerId: string, attachmentId: string
   const signed = await client.storage.from(BUCKET).createSignedUrl(row.storage_path, SIGNED_URL_SECONDS);
   if (signed.error || !signed.data) throw new StoreError("Could not create a viewing link. Please try again.");
   return signed.data.signedUrl;
+}
+
+/**
+ * Removes a photo from a draft. The delete only matches the owner's row with
+ * no attempt yet, so photos belonging to submitted attempts are never touched,
+ * even if a submission happens at the same moment.
+ */
+export async function removeDraftAttachment(userId: string, attachmentId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(attachmentId)) throw new StoreError("Photo not found.");
+  const client = db();
+  const deleted = check(
+    await client
+      .from("attempt_attachments")
+      .delete()
+      .eq("id", attachmentId)
+      .eq("clerk_user_id", userId)
+      .is("attempt_id", null)
+      .select("storage_path"),
+    "remove the photo",
+  ) as { storage_path: string }[];
+  if (deleted.length === 0) throw new StoreError("This photo is part of a submitted answer and cannot be removed.");
+  const removed = await client.storage.from(BUCKET).remove(deleted.map((row) => row.storage_path));
+  if (removed.error) {
+    // The record is gone, so the photo can no longer be viewed or submitted; log the stray file for cleanup.
+    console.error(`[store] stored photo not deleted (${deleted[0].storage_path}): ${removed.error.message}`);
+  }
 }
