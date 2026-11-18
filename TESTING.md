@@ -103,3 +103,14 @@ As **Lauren**, with her Progress page already open before David saves the Revisi
 7. Submit a new attempt for that question. It returns to the blue dashed "Submitted — awaiting review", and the earlier Revisit appears only in the history.
 
 Colours: Clear is green, Developing yellow, Revisit orange, and Not assessed light grey. Awaiting review is a blue dashed outline. Each always carries its text label.
+
+## Round 4 manual check: changed wording in David's review panel
+
+Round 3 passed (owner, 2026-11-19).
+
+1. As Lauren, submit "I checked the cable placed the fuse." for a question, then submit "I checked the cable and replaced the damaged plug."
+2. As David, open the latest attempt. The answer itself shows "placed" and "fuse." crossed out on a light red background, and "and replaced" and "damaged plug." in italics on a light green background. A legend reads "Added wording" / "Deleted wording". There is no extra panel.
+3. Open attempt 1 (a first submission) and an attempt whose text did not change. Both show the normal answer styling with no markings.
+4. For a multi-part question, only the parts that changed show markings. Line breaks are kept.
+5. As Lauren, the assessment and Progress pages show her answers with no markings.
+6. Previous attempts, history, the queue, counts and photos look and behave exactly as before.

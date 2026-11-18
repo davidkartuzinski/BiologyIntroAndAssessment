@@ -226,3 +226,36 @@ test("pending counts follow questions, not attempts, across several questions", 
   const items = reviewQueueItems([at("q1", 1, false), at("q1", 2, false), at("q1", 3, false), at("q2", 1, true), at("q3", 1, true), at("q3", 2, false)]);
   assert.equal(items.filter((item) => item.pending).length, 2); // q1 (attempt 3) and q3 (attempt 2)
 });
+
+import { hasChanges, wordDiff } from "../src/lib/attempts/word-diff.ts";
+
+const render = (segments: ReturnType<typeof wordDiff>) =>
+  segments.map((s) => (s.type === "same" ? s.text : s.type === "added" ? `[+${s.text}]` : `[-${s.text}]`)).join("");
+
+test("diff: the agreed example reads as additions and one replacement", () => {
+  const out = render(wordDiff("I checked the cable placed the fuse.", "I checked the cable and replaced the damaged plug."));
+  assert.equal(out, "I checked the cable [-placed ][+and replaced ]the [-fuse. ][+damaged plug.]");
+});
+
+test("diff: added wording", () => {
+  assert.equal(render(wordDiff("Cells are small.", "Cells are very small.")), "Cells are [+very ]small.");
+});
+
+test("diff: deleted wording", () => {
+  assert.equal(render(wordDiff("Cells are very small.", "Cells are small.")), "Cells are [-very ]small.");
+});
+
+test("diff: unchanged text has no markings and line breaks are kept", () => {
+  const segments = wordDiff("Line one.\nLine two.", "Line one.\nLine two.");
+  assert.equal(hasChanges(segments), false);
+  assert.equal(render(segments), "Line one.\nLine two.");
+});
+
+test("diff: never alters either answer — joining sides reproduces them", () => {
+  const before = "A bacterium is one organism.\n\nIt has one cell.";
+  const after = "A bacterium is a whole organism.\nIt has only one cell.";
+  const segments = wordDiff(before, after);
+  const side = (keep: string) => segments.filter((s) => s.type === "same" || s.type === keep).map((s) => s.text).join("");
+  assert.equal(side("added").replace(/\s+/g, " "), after.replace(/\s+/g, " "));
+  assert.equal(side("removed").replace(/\s+/g, " ").trim(), before.replace(/\s+/g, " ").trim());
+});

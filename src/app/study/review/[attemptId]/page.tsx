@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnswerText, StatusBadge } from "@/components/attempts/attempt-history";
+import { ChangedAnswerText } from "@/components/attempts/changed-answer-text";
 import { ReviewResultPanel, ReviewStatusBadge } from "@/components/attempts/review-status";
 import { FreshOnShow } from "@/components/fresh-on-show";
 import { describeSupport } from "@/lib/attempts/review-status";
@@ -59,7 +60,11 @@ export default async function ReviewDetailPage({ params }: PageProps<"/study/rev
           <StatusBadge attempt={attempt} />
         </div>
         <p className="text-sm">Submitted {new Date(attempt.submittedAt).toLocaleString()}</p>
-        <AnswerText attempt={attempt} question={question} />
+        <ChangedAnswerText
+          attempt={attempt}
+          previous={history.find((other) => other.attemptNumber === attempt.attemptNumber - 1)}
+          question={question}
+        />
         {photos.map((photo, index) => <PhotoLinkButton key={photo.id} attachmentId={photo.id} label={`Photo ${index + 1}`} />)}
       </section>
       {/* Both panels read from the same attempt as the answer and photos above. */}
