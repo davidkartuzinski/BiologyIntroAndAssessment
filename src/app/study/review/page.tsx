@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { PageShell } from "@/components/page-shell";
-import { Badge } from "@/components/ui/badge";
+import { ReviewStatusBadge } from "@/components/attempts/review-status";
+import { FreshOnShow } from "@/components/fresh-on-show";
 import { requireRole } from "@/lib/auth/viewer";
-import { statusLabel } from "@/lib/attempts/logic";
 import { reviewQueueItems, type QueueItem } from "@/lib/attempts/progress";
 import { StoreError, reviewQueue, type AttemptSummary } from "@/lib/attempts/store";
 import { findQuestion } from "@/lib/content/questions";
@@ -30,7 +30,7 @@ export default async function ReviewQueuePage() {
             </Link>
             <span className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               Attempt {latest.attemptNumber} (latest of {attemptCount}) · {new Date(latest.submittedAt).toLocaleString()}
-              <Badge variant={outcome ? "default" : "outline"}>{outcome ? `Reviewed: ${statusLabel[outcome]}` : "Awaiting review"}</Badge>
+              {outcome ? <ReviewStatusBadge state={outcome} prefix="Reviewed: " /> : <ReviewStatusBadge state="awaiting_review" />}
             </span>
           </li>
         );
@@ -43,10 +43,11 @@ export default async function ReviewQueuePage() {
       title="Review queue"
       intro="One item per question, pointing to Lauren’s latest submission. Earlier attempts are history only and do not need separate review."
     >
+      <FreshOnShow label="Check for new submissions" />
       {problem ? <p role="alert">{problem}</p> : null}
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">Awaiting review ({awaiting.length})</h2>
-        {awaiting.length ? list(awaiting) : <p>Nothing is waiting.</p>}
+        {awaiting.length ? list(awaiting) : <p>No submissions awaiting review.</p>}
       </section>
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">Reviewed ({reviewed.length})</h2>

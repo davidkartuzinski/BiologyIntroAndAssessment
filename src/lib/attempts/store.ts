@@ -1,5 +1,7 @@
 import "server-only";
 
+import { clerkClient } from "@clerk/nextjs/server";
+
 import {
   DEFAULT_MAX_ATTACHMENTS_PER_QUESTION,
   SIGNED_URL_SECONDS,
@@ -442,4 +444,51 @@ export async function removeDraftAttachment(userId: string, attachmentId: string
     // The record is gone, so the photo can no longer be viewed or submitted; log the stray file for cleanup.
     console.error(`[store] stored photo not deleted (${deleted[0].storage_path}): ${removed.error.message}`);
   }
+}
+
+// Reviewer names, unread feedback, counts ----------------------------------------
+
+/** Display names for reviewers, from verified Clerk records. */
+export async function reviewerNames(ids: string[]): Promise<Map<string, string>> {
+  const client = await clerkClient();
+  const names = new Map<string, string>();
+  for (const id of new Set(ids)) {
+    try {
+      const user = await client.users.getUser(id);
+      names.set(id, user.firstName || user.fullName || "your reviewer");
+    } catch {
+      names.set(id, "your reviewer");
+    }
+  }
+  return names;
+}
+
+/** True when migration 0004 has not been applied yet. */
+function missingTable(error: { code?: string; message: string } | null) {
+  return Boolean(error && (error.code === "42P01" || error.code === "PGRST205" || /feedback_views/.test(error.message)));
+}
+
+/** Review ids the learner has opened. Returns null if unread tracking is not set up. */
+export async function getSeenReviewIds(userId: string): Promise<Set<string> | null> {
+  const result = await db().from("feedback_views").select("human_review_id").eq("clerk_user_id", userId);
+  if (missingTable(result.error)) return null;
+  const rows = check(result, "load feedback status") as { human_review_id: string }[];
+  return new Set(rows.map((row) => row.human_review_id));
+}
+
+/** Marks reviews as seen, only for reviews of the learner's own attempts. */
+export async function markReviewsSeen(userId: string, reviewIds: string[]) {
+  const ids = reviewIds.filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 100);
+  if (ids.length === 0) return;
+  const client = db();
+  const owned = check(
+    await client.from("human_reviews").select("id, question_attempts!inner(clerk_user_id)").in("id", ids).eq("question_attempts.clerk_user_id", userId),
+    "check feedback ownership",
+  ) as { id: string }[];
+  if (owned.length === 0) return;
+  const result = await client
+    .from("feedback_views")
+    .upsert(owned.map((row) => ({ clerk_user_id: userId, human_review_id: row.id })), { onConflict: "clerk_user_id,human_review_id", ignoreDuplicates: true });
+  if (missingTable(result.error)) return;
+  check(result, "record that you viewed the feedback");
 }

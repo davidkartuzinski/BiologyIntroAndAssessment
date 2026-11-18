@@ -166,3 +166,63 @@ test("attempts are grouped per learner and question, never across them", () => {
   const latest = latestAttempts([attempt(2, [], "q1"), attempt(1, [], "q2"), attempt(5, [], "q1", "other")]);
   assert.equal(latest.length, 3);
 });
+
+import { describeSupport, reviewStateClass, reviewStateLabel, unreadReviewIds } from "../src/lib/attempts/review-status.ts";
+
+// Shared status mapping, support labels, unread feedback ------------------------
+
+test("each review state has one label and one style, and the four outcome colours match the agreed palette", () => {
+  for (const state of Object.keys(reviewStateLabel) as (keyof typeof reviewStateLabel)[]) {
+    assert.ok(reviewStateLabel[state].length > 0);
+    assert.ok(reviewStateClass[state].length > 0);
+  }
+  assert.match(reviewStateClass.clear, /green/);
+  assert.match(reviewStateClass.developing, /yellow/);
+  assert.match(reviewStateClass.revisit, /orange/);
+  assert.match(reviewStateClass.not_assessed, /gray/);
+  // Awaiting review must look different from the recorded outcome "Not assessed".
+  assert.notEqual(reviewStateClass.awaiting_review, reviewStateClass.not_assessed);
+  assert.notEqual(reviewStateLabel.awaiting_review, reviewStateLabel.not_assessed);
+});
+
+test("saving Revisit on the latest attempt gives the expected learner label", () => {
+  const rows = questionProgress(
+    [{ id: "intro-q2", number: 2, title: "Organisms and cells", isReflection: false }],
+    [{ id: "a1", learnerId: "lauren", questionId: "intro-q2", attemptNumber: 1, submittedAt: "2026-11-18T17:09:22Z", humanReviews: [{ outcome: "revisit", reviewedAt: "2026-11-18T17:11:03Z" }] }],
+  );
+  assert.equal(rows[0].label, "Reviewed: Revisit — another attempt suggested");
+});
+
+test("a revision after Revisit returns the question to awaiting review", () => {
+  const rows = questionProgress(
+    [{ id: "intro-q2", number: 2, title: "Organisms and cells", isReflection: false }],
+    [
+      { id: "a1", learnerId: "lauren", questionId: "intro-q2", attemptNumber: 1, submittedAt: "2026-11-18T17:09:22Z", humanReviews: [{ outcome: "revisit", reviewedAt: "2026-11-18T17:11:03Z" }] },
+      { id: "a2", learnerId: "lauren", questionId: "intro-q2", attemptNumber: 2, submittedAt: "2026-11-18T18:00:00Z", humanReviews: [] },
+    ],
+  );
+  assert.equal(rows[0].state, "awaiting_review");
+  assert.equal(rows[0].outcome, null); // the old Revisit is history, not the current outcome
+});
+
+test("support used shows the exact saved choice or Not recorded", () => {
+  assert.equal(describeSupport("I"), "Independent (I)");
+  assert.equal(describeSupport("N"), "Used notes or dictionary (N)");
+  assert.equal(describeSupport("H"), "Discussed with someone (H)");
+  assert.equal(describeSupport(null), "Not recorded");
+});
+
+test("unread feedback counts only the newest review on each latest attempt and clears once seen", () => {
+  const latest = [
+    { humanReviews: [{ id: "r-new", reviewedAt: "2026-11-19T02:00:00Z" }, { id: "r-old", reviewedAt: "2026-11-19T01:00:00Z" }] },
+    { humanReviews: [] },
+  ];
+  assert.deepEqual(unreadReviewIds(latest, new Set()), ["r-new"]);
+  assert.deepEqual(unreadReviewIds(latest, new Set(["r-new"])), []);
+});
+
+test("pending counts follow questions, not attempts, across several questions", () => {
+  const at = (q: string, n: number, reviewed: boolean) => ({ id: `${q}${n}`, learnerId: "lauren", questionId: q, attemptNumber: n, submittedAt: `2026-11-19T0${n}:00:00Z`, humanReviews: reviewed ? [{ outcome: "clear" as const, reviewedAt: "2026-11-19T09:00:00Z" }] : [] });
+  const items = reviewQueueItems([at("q1", 1, false), at("q1", 2, false), at("q1", 3, false), at("q2", 1, true), at("q3", 1, true), at("q3", 2, false)]);
+  assert.equal(items.filter((item) => item.pending).length, 2); // q1 (attempt 3) and q3 (attempt 2)
+});

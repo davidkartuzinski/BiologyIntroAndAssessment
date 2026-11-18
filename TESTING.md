@@ -84,3 +84,22 @@ As **David** (role `reviewer`):
 With any other signed-in account (no role): answers cannot be saved and the review pages are refused.
 
 In Supabase, try `update public.question_attempts set answer = '{}' where true;`. It should fail with "permanent history".
+
+## Round 3 manual checks: review colours, counts, support and unclear words
+
+Results so far: all photo-removal steps and David steps 1–4 passed. David step 5 (Revisit shown to Lauren) failed because Lauren's page was stale (see `DECISIONS.md`). Repeat these:
+
+As **David**:
+
+1. On the dashboard, the blue "Awaiting review" card shows the number of questions (not attempts) awaiting review, or "No submissions awaiting review". The "Review queue" link in the sidebar shows the same number.
+2. Open a submission. Above the review form, "Support used" shows the full wording (for example "Independent (I)"), and "Word or phrase Lauren found unclear" shows her text in normal dark type, or "None recorded".
+3. Save a review as Revisit. It appears as an orange panel: "Outcome: Revisit", "Reviewed by you", and the date. The queue count drops by one.
+
+As **Lauren**, with her Progress page already open before David saves the Revisit:
+
+4. Switch back to the tab (or press "Check for new reviews"). The question shows an orange "Reviewed: Revisit" badge, the line "Another attempt suggested", and a "New feedback" label. The sidebar Progress link shows a count of new reviews (only once migration 0004 has been applied).
+5. Reload the Progress page. The orange panel says "Reviewed by David" with the date, and the "New feedback" label and sidebar count are gone. The review itself is still shown.
+6. Check that the assessment page shows the same orange panel under her latest submission, and that the dashboard shows the coloured counts.
+7. Submit a new attempt for that question. It returns to the blue dashed "Submitted — awaiting review", and the earlier Revisit appears only in the history.
+
+Colours: Clear is green, Developing yellow, Revisit orange, and Not assessed light grey. Awaiting review is a blue dashed outline. Each always carries its text label.

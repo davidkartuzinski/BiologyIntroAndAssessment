@@ -9,6 +9,7 @@ import {
   StoreError,
   addHumanReview,
   flagAiFeedback,
+  markReviewsSeen,
   recordConsents,
   removeDraftAttachment,
   saveDraft,
@@ -166,5 +167,17 @@ export async function removeDraftAttachmentAction(attachmentId: string): Promise
     return { ok: true, message: "Photo removed. Your written answer has not changed." };
   } catch (error) {
     return failure(error);
+  }
+}
+
+/** Records that the learner has opened these reviews. Never changes the reviews. */
+export async function markFeedbackSeenAction(reviewIds: string[]): Promise<void> {
+  try {
+    const viewer = await getViewer();
+    if (viewer.role !== "learner" || !Array.isArray(reviewIds)) return;
+    await markReviewsSeen(viewer.userId, reviewIds.map(String));
+    refresh(); // clears the "new feedback" badge in the navigation
+  } catch (error) {
+    console.error("[action] could not record viewed feedback", error);
   }
 }

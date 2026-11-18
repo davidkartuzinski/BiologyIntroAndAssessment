@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnswerText, StatusBadge } from "@/components/attempts/attempt-history";
+import { ReviewResultPanel, ReviewStatusBadge } from "@/components/attempts/review-status";
+import { FreshOnShow } from "@/components/fresh-on-show";
+import { describeSupport } from "@/lib/attempts/review-status";
 import { PhotoLinkButton } from "@/components/attempts/photo-link-button";
 import { FlagForm, ReviewForm } from "@/components/attempts/review-forms";
 import { ContentBlocks } from "@/components/content/blocks";
 import { PageShell } from "@/components/page-shell";
 import { requireRole } from "@/lib/auth/viewer";
-import { attachmentsForAttempt, attemptForReviewer, attemptsForQuestion } from "@/lib/attempts/store";
+import { attachmentsForAttempt, attemptForReviewer, attemptsForQuestion, reviewerNames } from "@/lib/attempts/store";
 import { statusLabel } from "@/lib/attempts/logic";
 import { supersededBy } from "@/lib/attempts/progress";
 import { sectionHref } from "@/lib/content";
@@ -23,6 +26,7 @@ export default async function ReviewDetailPage({ params }: PageProps<"/study/rev
   const { unit, question } = found;
   const [photos, history] = await Promise.all([attachmentsForAttempt(attempt.id), attemptsForQuestion(attempt.learnerId, attempt.questionId)]);
   const guidance = getMarkingGuidance(question.id);
+  const names = await reviewerNames(history.flatMap((other) => other.humanReviews.map((review) => review.reviewerId)));
   const newer = supersededBy(attempt, history);
   const latest = newer ? history.find((other) => other.attemptNumber === newer) : undefined;
   const previous = history.filter((other) => other.attemptNumber < attempt.attemptNumber).reverse();
@@ -30,6 +34,7 @@ export default async function ReviewDetailPage({ params }: PageProps<"/study/rev
   return (
     <PageShell eyebrow={newer ? `Attempt ${attempt.attemptNumber} — superseded by attempt ${newer}` : `Attempt ${attempt.attemptNumber} — latest submission`} title={`Q${question.number}. ${question.title}`}>
       <Link href="/study/review" className="underline underline-offset-4">← Review queue</Link>
+      <FreshOnShow label="Check for newer submissions" />
       {latest ? (
         <p role="alert" className="rounded-lg border border-amber-500/50 bg-amber-50 px-4 py-3 dark:bg-amber-950/30">
           This is not Lauren’s latest answer. Attempt {latest.attemptNumber} was submitted {new Date(latest.submittedAt).toLocaleString()}.{" "}
@@ -53,13 +58,25 @@ export default async function ReviewDetailPage({ params }: PageProps<"/study/rev
           <h2 className="text-lg font-semibold">Lauren’s answer — attempt {attempt.attemptNumber}{newer ? "" : " (latest submission)"}</h2>
           <StatusBadge attempt={attempt} />
         </div>
-        <p className="text-sm text-muted-foreground">
-          Submitted {new Date(attempt.submittedAt).toLocaleString()} · support {attempt.assistance}
-          {attempt.unclearWords ? ` · unclear words: ${attempt.unclearWords}` : ""}
-        </p>
+        <p className="text-sm">Submitted {new Date(attempt.submittedAt).toLocaleString()}</p>
         <AnswerText attempt={attempt} question={question} />
         {photos.map((photo, index) => <PhotoLinkButton key={photo.id} attachmentId={photo.id} label={`Photo ${index + 1}`} />)}
       </section>
+      {/* Both panels read from the same attempt as the answer and photos above. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <section className="space-y-1 rounded-xl border-2 border-foreground/70 bg-background p-4" aria-labelledby="support-heading">
+          <h2 id="support-heading" className="text-base font-semibold">Support used</h2>
+          <p className="text-lg font-medium">{describeSupport(attempt.assistance)}</p>
+        </section>
+        <section className="space-y-1 rounded-xl border-2 border-foreground/70 bg-background p-4" aria-labelledby="unclear-heading">
+          <h2 id="unclear-heading" className="text-base font-semibold">Word or phrase Lauren found unclear</h2>
+          {attempt.unclearWords ? (
+            <p className="whitespace-pre-wrap text-lg">{attempt.unclearWords}</p>
+          ) : (
+            <p className="text-sm">None recorded</p>
+          )}
+        </section>
+      </div>
       {previous.length > 0 ? (
         <details className="rounded-xl border p-5">
           <summary className="cursor-pointer font-semibold">Previous attempts — history only ({previous.length})</summary>
@@ -68,8 +85,9 @@ export default async function ReviewDetailPage({ params }: PageProps<"/study/rev
               <li key={older.id} className="space-y-1 border-t pt-3">
                 <p className="text-sm text-muted-foreground">
                   Attempt {older.attemptNumber} · {new Date(older.submittedAt).toLocaleString()} · superseded by attempt {attempt.attemptNumber}
-                  {older.humanReviews[0] ? ` · reviewed then: ${statusLabel[older.humanReviews[0].outcome]}` : ""}
+                  {" · "}support: {describeSupport(older.assistance)}
                 </p>
+                {older.humanReviews[0] ? <ReviewStatusBadge state={older.humanReviews[0].outcome} prefix="Reviewed then: " /> : null}
                 <AnswerText attempt={older} question={question} />
                 {older.humanReviews[0]?.comments ? <p className="text-sm">Feedback then: {older.humanReviews[0].comments}</p> : null}
               </li>
@@ -98,12 +116,15 @@ export default async function ReviewDetailPage({ params }: PageProps<"/study/rev
       ) : null}
       <section className="space-y-3 rounded-xl border p-5">
         <h2 className="text-lg font-semibold">Human reviews</h2>
+        {attempt.humanReviews.length === 0 ? <ReviewStatusBadge state="awaiting_review" /> : null}
         {attempt.humanReviews.map((review) => (
-          <p key={review.id} className="text-sm">
-            <span className="font-medium">{statusLabel[review.outcome]}</span> · {new Date(review.reviewedAt).toLocaleString()}
-            {review.reviewerId === viewer.userId ? " · you" : ""}
-            {review.comments ? <><br />{review.comments}</> : null}
-          </p>
+          <ReviewResultPanel
+            key={review.id}
+            outcome={review.outcome}
+            reviewerName={review.reviewerId === viewer.userId ? "you" : (names.get(review.reviewerId) ?? "a reviewer")}
+            reviewedAt={review.reviewedAt}
+            comments={review.comments}
+          />
         ))}
         {latest ? (
           <p className="text-sm">Reviews are recorded on the latest attempt only.</p>

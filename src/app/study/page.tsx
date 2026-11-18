@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { DemoBanner } from "@/components/demo-banner";
 import { PageShell } from "@/components/page-shell";
+import { ReviewStatusBadge } from "@/components/attempts/review-status";
+import { FreshOnShow } from "@/components/fresh-on-show";
 import { Button } from "@/components/ui/button";
 import { assessmentHref, getCourse, sectionHref, unitHref } from "@/lib/content";
 import { getServiceStatus } from "@/lib/env/services";
@@ -43,22 +45,48 @@ export default async function DashboardPage() {
         </div>
       </section>
       {viewer.role === "reviewer" ? (
-        <section className="space-y-2 rounded-xl border p-5">
-          <h2 className="text-xl font-semibold">Reviewer</h2>
-          <p>{awaitingReview === null ? "The queue count is unavailable." : `${awaitingReview} question${awaitingReview === 1 ? "" : "s"} awaiting review.`}</p>
-          <Link href="/study/review" className="underline underline-offset-4">Open the review queue</Link>
+        <section className="space-y-3 rounded-xl border-2 border-sky-700 bg-sky-50 p-5 text-sky-950 dark:bg-sky-200" aria-labelledby="awaiting-heading">
+          <h2 id="awaiting-heading" className="text-xl font-semibold">Awaiting review</h2>
+          {awaitingReview === null ? (
+            <p>The queue count is unavailable right now.</p>
+          ) : awaitingReview === 0 ? (
+            <p>No submissions awaiting review.</p>
+          ) : (
+            <p className="text-lg font-semibold">
+              {awaitingReview} question{awaitingReview === 1 ? "" : "s"} from Lauren awaiting review
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button asChild>
+              <Link href="/study/review">Open the review queue</Link>
+            </Button>
+            <FreshOnShow label="Check for new submissions" />
+          </div>
         </section>
       ) : null}
       {progress.ok ? (
-        <section className="space-y-2 rounded-xl border p-5">
+        <section className="space-y-3 rounded-xl border p-5">
           <h2 className="text-xl font-semibold">Your progress</h2>
           <p>
-            {progress.summary.submitted} of {progress.summary.total} questions submitted · {progress.summary.reviewed} reviewed ·{" "}
-            {progress.summary.awaitingReview} awaiting review
-            {progress.summary.anotherAttemptSuggested ? ` · ${progress.summary.anotherAttemptSuggested} with another attempt suggested` : ""}
+            {progress.summary.submitted} of {progress.summary.total} questions submitted
           </p>
+          <ul className="flex flex-wrap gap-2" aria-label="Question status counts">
+            <li><ReviewStatusBadge state="awaiting_review" prefix={`${progress.summary.awaitingReview} · `} /></li>
+            {(["clear", "developing", "revisit", "not_assessed", "reflection_noted"] as const).map((outcome) => {
+              const count = progress.rows.filter((row) => row.state === "reviewed" && row.outcome === outcome).length;
+              return count ? <li key={outcome}><ReviewStatusBadge state={outcome} prefix={`${count} · Reviewed: `} /></li> : null;
+            })}
+          </ul>
+          {progress.unread?.length ? (
+            <p className="font-medium">
+              You have {progress.unread.length} new review{progress.unread.length === 1 ? "" : "s"} to read.
+            </p>
+          ) : null}
           <p className="text-sm text-muted-foreground">You can keep studying while answers await review.</p>
-          <Link href="/study/progress" className="underline underline-offset-4">See progress by question</Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/study/progress" className="underline underline-offset-4">See progress and feedback</Link>
+            <FreshOnShow />
+          </div>
         </section>
       ) : null}
       <section className="space-y-2">

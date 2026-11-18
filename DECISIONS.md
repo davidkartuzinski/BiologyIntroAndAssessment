@@ -42,3 +42,9 @@ Decisions made by the project owner. Check here before asking again.
 - After submitting, Lauren sees "Submitted — awaiting review". David reviews manually. Lauren can keep studying while she waits.
 - Progress comes only from real submissions and David's recorded reviews.
 - Do not ask about an AI provider or an AI-feedback release policy until the owner reactivates this phase.
+
+## Review display (2026-11-19)
+
+- **Cause of the stale "Revisit":** the review was saved and the progress logic was correct. Lauren's page was a copy kept alive in her browser between navigations, and nothing told it that David had saved a review from another session. Review-dependent pages now refresh their server data when they come back into view or the tab regains focus, and have a "Check for new reviews" button.
+- One shared status mapping (`src/lib/attempts/review-status.ts`): Clear is green, Developing yellow, Revisit orange, Not assessed light grey. Awaiting review is a distinct blue dashed outline. Each always has a text label.
+- Unread feedback uses the new `feedback_views` table (migration 0004). Until it is applied, the "new" badges are hidden and everything else works.

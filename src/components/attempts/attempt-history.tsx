@@ -1,12 +1,15 @@
 import type { Question } from "@/content/schema.ts";
 import { PhotoLinkButton } from "@/components/attempts/photo-link-button";
+import { ReviewResultPanel, ReviewStatusBadge } from "@/components/attempts/review-status";
 import { Badge } from "@/components/ui/badge";
+import type { LatestReview } from "@/lib/attempts/learner-progress";
 import { statusLabel } from "@/lib/attempts/logic";
 import type { Attachment, AttemptSummary } from "@/lib/attempts/store";
 
+/** Status of one attempt: its latest human review outcome, or awaiting review. */
 export function StatusBadge({ attempt }: { attempt: AttemptSummary }) {
-  const prefix = attempt.status.source === "human" ? "Reviewed: " : attempt.status.source === "ai" ? "AI (provisional): " : "";
-  return <Badge variant={attempt.status.source === "human" ? "default" : "outline"}>{prefix}{statusLabel[attempt.status.status]}</Badge>;
+  const review = attempt.humanReviews[0];
+  return review ? <ReviewStatusBadge state={review.outcome} prefix="Reviewed: " /> : <ReviewStatusBadge state="awaiting_review" />;
 }
 
 export function AnswerText({ attempt, question }: { attempt: AttemptSummary; question: Question }) {
@@ -23,7 +26,7 @@ export function AnswerText({ attempt, question }: { attempt: AttemptSummary; que
   );
 }
 
-function AttemptBlock({ attempt, question, attachments, label }: { attempt: AttemptSummary; question: Question; attachments: Attachment[]; label: React.ReactNode }) {
+function AttemptBlock({ attempt, question, attachments, label, showComments = true }: { attempt: AttemptSummary; question: Question; attachments: Attachment[]; label: React.ReactNode; showComments?: boolean }) {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -35,22 +38,25 @@ function AttemptBlock({ attempt, question, attachments, label }: { attempt: Atte
       {attachments.filter((photo) => photo.attemptId === attempt.id).map((photo, index) => (
         <PhotoLinkButton key={photo.id} attachmentId={photo.id} label={`Photo ${index + 1}`} />
       ))}
-      {attempt.humanReviews[0]?.comments ? (
-        <p className="rounded-md bg-muted/50 p-2 text-sm"><span className="font-medium">Reviewer feedback: </span>{attempt.humanReviews[0].comments}</p>
+      {showComments && attempt.humanReviews[0]?.comments ? (
+        <p className="rounded-md border p-2 text-sm"><span className="font-medium">Reviewer feedback then: </span>{attempt.humanReviews[0].comments}</p>
       ) : null}
     </div>
   );
 }
 
 /** Learner view: the latest submission first; earlier attempts collapsed as history. */
-export function AttemptHistory({ attempts, question, attachments }: { attempts: AttemptSummary[]; question: Question; attachments: Attachment[] }) {
+export function AttemptHistory({ attempts, question, attachments, latestReview }: { attempts: AttemptSummary[]; question: Question; attachments: Attachment[]; latestReview?: LatestReview }) {
   if (attempts.length === 0) return null;
   const ordered = [...attempts].sort((a, b) => b.attemptNumber - a.attemptNumber);
   const [latest, ...earlier] = ordered;
   return (
     <div className="space-y-3 rounded-lg border p-3">
       <p className="text-sm font-semibold">Latest submission</p>
-      <AttemptBlock attempt={latest} question={question} attachments={attachments} label={<StatusBadge attempt={latest} />} />
+      <AttemptBlock attempt={latest} question={question} attachments={attachments} label={<StatusBadge attempt={latest} />} showComments={false} />
+      {latestReview && latestReview.attemptNumber === latest.attemptNumber ? (
+        <ReviewResultPanel outcome={latestReview.outcome} reviewerName={latestReview.reviewerName} reviewedAt={latestReview.reviewedAt} comments={latestReview.comments} />
+      ) : null}
       {earlier.length > 0 ? (
         <details>
           <summary className="cursor-pointer text-sm font-medium">Earlier attempts — history ({earlier.length})</summary>

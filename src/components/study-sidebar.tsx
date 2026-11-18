@@ -4,7 +4,6 @@ import { SignOutButton, UserButton } from "@clerk/nextjs";
 import {
   BookOpen,
   BookA,
-  ChartNoAxesColumn,
   House,
   Library,
   LogOut,
@@ -39,7 +38,6 @@ const navigation = [
   { href: "/study/resources", label: "Resources", icon: PlaySquare },
   { href: "/study/settings", label: "Settings", icon: Settings },
   { href: "/study/library", label: "Library", icon: Library, later: true },
-  { href: "/study/progress", label: "Progress", icon: ChartNoAxesColumn },
 ] as const;
 
 function isCurrent(pathname: string, href: string) {

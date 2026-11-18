@@ -6,6 +6,9 @@ import { PageShell } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { AnswerForm } from "@/components/attempts/answer-form";
 import { AttemptHistory } from "@/components/attempts/attempt-history";
+import { MarkFeedbackSeen } from "@/components/attempts/mark-seen";
+import { FreshOnShow } from "@/components/fresh-on-show";
+import { learnerProgress, type LearnerProgress } from "@/lib/attempts/learner-progress";
 import { getViewer } from "@/lib/auth/viewer";
 import {
   StoreError,
@@ -29,7 +32,7 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
   const { assessment } = unit;
 
   // Learner work is loaded only for the learner's own verified id.
-  let work: { drafts: Map<string, Draft>; attempts: AttemptSummary[]; photos: Attachment[] } | null = null;
+  let work: { drafts: Map<string, Draft>; attempts: AttemptSummary[]; photos: Attachment[]; progress: LearnerProgress } | null = null;
   let notice: string;
   if (viewer.role !== "learner") {
     notice = viewer.role === "reviewer"
@@ -39,8 +42,13 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
     notice = "Demo mode: saving is not connected, so answers cannot be saved here yet.";
   } else {
     try {
-      const [drafts, attempts, photos] = await Promise.all([getDrafts(viewer.userId), listOwnAttempts(viewer.userId), listOwnAttachments(viewer.userId)]);
-      work = { drafts, attempts, photos };
+      const [drafts, attempts, photos, progress] = await Promise.all([
+        getDrafts(viewer.userId),
+        listOwnAttempts(viewer.userId),
+        listOwnAttachments(viewer.userId),
+        learnerProgress(viewer, unit),
+      ]);
+      work = { drafts, attempts, photos, progress };
       notice = "Drafts save automatically a few seconds after you stop typing. Submitting never replaces an earlier attempt.";
     } catch (error) {
       notice = error instanceof StoreError ? error.message : "Your saved work could not be loaded. Please refresh the page.";
@@ -50,6 +58,8 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
   return (
     <PageShell eyebrow={unit.subtitle} title={assessment.title}>
       <p role="status" className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">{notice}</p>
+      {work ? <FreshOnShow /> : null}
+      {work?.progress.ok && work.progress.unread?.length ? <MarkFeedbackSeen reviewIds={work.progress.unread} /> : null}
       <ContentBlocks blocks={assessment.introduction} unit={unit} />
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Support labels</h2>
@@ -99,6 +109,7 @@ export default async function AssessmentPage({ params }: PageProps<"/study/units
                 attempts={work.attempts.filter((attempt) => attempt.questionId === question.id)}
                 question={question}
                 attachments={work.photos}
+                latestReview={work.progress.ok ? work.progress.latestReviews.get(question.id) : undefined}
               />
               <AnswerForm
                 questionId={question.id}
