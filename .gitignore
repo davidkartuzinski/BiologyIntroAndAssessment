@@ -48,3 +48,6 @@ next-env.d.ts
 # private source material and working documents
 docs/
 docs/sources/
+
+# one-off maintenance output (manifests, backups contain private paths/photos)
+scripts/maintenance/output/

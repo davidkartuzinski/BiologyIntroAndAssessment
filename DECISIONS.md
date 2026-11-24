@@ -54,3 +54,8 @@ Decisions made by the project owner. Check here before asking again.
 - **Export assessment for course planning:** reviewer-only and read-only. Downloads Markdown, or a ZIP with images and a manifest. Optional neutral learner label; private guidance is off by default. Excludes drafts, IDs, emails, tokens and links. Exporting never marks feedback as read or changes the queue.
 - **Shared glossary:** the course vocabulary is the default content, stored in `glossary_entries` (migration 0005). David edits it at `/study/review/glossary`, using deactivate rather than delete, and can restore the original default after confirming. Lauren sees in-text definition popovers. Until 0005 is applied, the built-in definitions are shown and editing is disabled.
 - Database access follows the existing model: RLS is on with no public policies. The server lets learners read only active entries and lets only the reviewer role write.
+
+## Test-data reset before Lauren starts (2026-11-19)
+
+- A one-off reset is prepared in `supabase/maintenance/` (not a migration), with a fixed cutoff of **2026-11-18 19:00 UTC** for Lauren and the introductory assessment. Photo files are deleted through the Storage API script first; the database SQL then runs in one transaction.
+- **Awaiting the owner's approval:** the reset must disable the `*_immutable` history triggers inside its transaction (they are re-enabled before commit, and everything rolls back on any error). Nothing has been run.
