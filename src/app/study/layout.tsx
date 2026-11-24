@@ -6,7 +6,8 @@ import {
 } from "@/components/ui/sidebar";
 import { StudySidebar } from "@/components/study-sidebar";
 import { TextSizeControl } from "@/components/text-size-control";
-import { RoleNavLinks } from "@/components/role-nav-links";
+import { NavData } from "@/components/nav/nav-data";
+import { StudyNav } from "@/components/nav/study-nav";
 import { Suspense } from "react";
 
 export default function StudyLayout({
@@ -16,7 +17,7 @@ export default function StudyLayout({
 }) {
   return (
     <SidebarProvider className="h-svh overflow-hidden">
-      <StudySidebar reviewerLink={<Suspense fallback={null}><RoleNavLinks /></Suspense>} />
+      <StudySidebar nav={<Suspense fallback={<StudyNav role={null} counts={{}} />}><NavData /></Suspense>} />
       <SidebarInset className="min-h-0 overflow-hidden">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger />

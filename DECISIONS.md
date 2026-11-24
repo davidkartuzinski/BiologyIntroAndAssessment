@@ -59,3 +59,10 @@ Decisions made by the project owner. Check here before asking again.
 
 - A one-off reset is prepared in `supabase/maintenance/` (not a migration), with a fixed cutoff of **2026-11-18 19:00 UTC** for Lauren and the introductory assessment. Photo files are deleted through the Storage API script first; the database SQL then runs in one transaction.
 - **Awaiting the owner's approval:** the reset must disable the `*_immutable` history triggers inside its transaction (they are re-enabled before commit, and everything rolls back on any error). Nothing has been run.
+
+## Sidebar structure (2026-11-24)
+
+- Student Dashboard (`/study`; the link navigates and a separate chevron expands) → Courses label → Biology (Course Map, Introductory Unit, Resources, Library, Progress), plus Math and Chemistry "Coming soon" pages.
+- Coach Dashboard → Review Queue. Glossary and Settings are top level. Administrator Dashboard → Glossary Editor.
+- Coach and Administrator are navigation groups, not pages. No new roles were added. The Administrator group shows for the existing reviewer role, because that role already owns the Glossary Editor. A separate administrator role would be a future change.
+- All existing URLs are unchanged.

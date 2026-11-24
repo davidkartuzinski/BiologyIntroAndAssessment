@@ -183,3 +183,38 @@ Finding: all five stored photos are genuine PNG files. Rebuilding the export fro
 3. Open `report.md` in a Markdown viewer and click each "Photo N" link. Every link opens the image.
 4. Every row in `manifest.csv` with status `included` names a file that exists under `images/`, and its extension matches the `format` column.
 5. On macOS, run `file images/*` in the extracted folder. Each file's real type matches its extension.
+
+## Round 7: sidebar navigation
+
+Automated (`tests/navigation.test.ts`):
+
+- The exact hierarchy is shown to the reviewer.
+- Learners and accounts with no role see only Student Dashboard, Glossary and Settings.
+- The Glossary Editor is still available to the existing reviewer.
+- Every destination page exists.
+- The Math and Chemistry placeholders say "Coming soon".
+- The most specific page is highlighted, and its groups open.
+- The badges stay on Progress and Review Queue.
+- The expand/collapse controls have the right accessibility labels.
+- The old flat menu is removed.
+
+Signed out, all 12 existing and new URLs redirect to sign-in, so none returns 404.
+
+There is no separate administrator account. The Administrator Dashboard group appears for the existing reviewer role, because that role is what the Glossary Editor already requires.
+
+As **Lauren**:
+
+1. The sidebar shows Student Dashboard (expanded) → COURSES → Biology (expanded) with Course Map, Introductory Unit, Resources, Library (Later) and Progress, then Math (Coming soon) and Chemistry (Coming soon). Glossary and Settings are at the top level. There is no Coach or Administrator group.
+2. Click "Student Dashboard". It opens the dashboard. The separate chevron beside it collapses and expands the group without leaving the page.
+3. Collapse Biology, then open a lesson from the dashboard. Biology reopens, and "Introductory Unit" is highlighted.
+4. Math and Chemistry open simple "Coming soon" pages.
+5. The Progress badge still shows new reviews.
+6. Type an unsaved answer in the assessment, then collapse and expand groups. The answer stays.
+7. Using only the keyboard, Tab to each chevron and press Enter or Space. The group toggles, and the screen reader announces "expanded" or "collapsed".
+8. On a phone, open the menu. It has the same hierarchy, and tapping the chevrons works.
+
+As **David**:
+
+9. The sidebar also shows Coach Dashboard → Review Queue (with the pending count) and Administrator Dashboard → Glossary Editor. There is only one "Glossary" link (for reading).
+10. The Review Queue and the Glossary Editor open and work as before. On the Glossary Editor page, only "Glossary Editor" is highlighted, not "Review Queue".
+11. Old bookmarks (`/study/course`, `/study/review`, `/study/review/glossary`, and so on) still open the same pages.
